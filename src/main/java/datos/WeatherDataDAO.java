@@ -6,6 +6,8 @@ package datos;
 
 import domain.WeatherData;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 /**
@@ -19,28 +21,28 @@ public class WeatherDataDAO {
             + "humidity_percent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updated) "
             + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    private static final String SQL_UPDATE = "update articulo set descripcion = (?), fabrica_id = (?) where idArticulo = (?)";
-    private static final String SQL_DELETE = "delete from articulo where idArticulo = (?)";
+    private static final String SQL_UPDATE = "UPDATE WeatherData SET city = ?, country = ?, latitude = ?, longitude = ?, date = ?, temperature_celsius = ?, humidity_percent = ?, precipitation_mm = ?, wind_speed_kmh = ?, weather_condition = ?, forecast = ?, updated = ? WHERE recordId = ?";
+    private static final String SQL_DELETE = "delete from WeatherDataMZ06 where city = (?)";
     private static final String SQL_SELECT = "select count(*) as counter from WeatherDataMZ06"; //Preguntar si la tabla la tinc que disar aixina
 
-    public static void insertWeatherData(Connection c, int recordId, String city, String country, float latitude, float longitude,
-            Timestamp date, int temperatureCelsius, int humidityPercent, float precipitationMm,
+    public static void insertWeatherData(Connection c, String city, String country, double latitude, double longitude,
+            Timestamp date, int temperatureCelsius, int humidityPercent, double precipitationMm,
             int windSpeedKmh, String weatherCondition, String forecast, Timestamp updated) {
 
         PreparedStatement st = null;
 
         try {
             st = c.prepareStatement(SQL_INSERT);
-
-            st.setInt(1, recordId);
+            
+            st.setInt(1, getLastId());
             st.setString(2, city);
             st.setString(3, country);
-            st.setFloat(4, latitude);
-            st.setFloat(5, longitude);
+            st.setDouble(4, latitude);
+            st.setDouble(5, longitude);
             st.setTimestamp(6, date);
             st.setInt(7, temperatureCelsius);
             st.setInt(8, humidityPercent);
-            st.setFloat(9, precipitationMm);
+            st.setDouble(9, precipitationMm);
             st.setInt(10, windSpeedKmh);
             st.setString(11, weatherCondition);
             st.setString(12, forecast);
@@ -60,55 +62,360 @@ public class WeatherDataDAO {
             }
         }
     }
+    
+            
+    private static int getLastId(){
+        
+        Connection c;
+        PreparedStatement st;
+        ResultSet rs;
+        String query = "select max(record_id) as max from WeatherDataMZ06";
+        
+        int autoincrementId = 0;
+        try{
+            
+            c = ConexionMySQL.getConnection();
+            st = c.prepareStatement(query);
+            rs = st.executeQuery();
+            
+            rs.next();
+            
+            autoincrementId = rs.getInt("max");
+            
+        }catch(SQLException sqle){
+            
+            System.out.println("Error -> "+sqle.getMessage());
+            
+        }
+        
+        return autoincrementId + 1;
+        
+    }        
+            
 
-//
-//    public static void update(WeatherData wd, Connection c) {
-//        PreparedStatement st;
-//
-//        try {
-//            int idFabrica;
-//            if ((idFabrica = encontrarFabrica(a.getFabrica_id())) == -1) {
-//                throw new SQLException("El id de fabrica: " + a.getFabrica_id() + " no referencia a ninguna tabla de fabrica");
-//            }
-//
-//            c = UtilsConexion.conexion();
-//            st = c.prepareStatement(SQL_UPDATE);
-//
-//            st.setString(1, a.getDescripcion());
-//            st.setInt(2, idFabrica);
-//            st.setInt(3, a.getIdArticulo());
-//
-//            st.executeUpdate();
-//
-//            UtilsConexion.closeConexion(c, st);
-//        } catch (SQLException sqle) {
-//            System.out.println(sqle.getMessage());
-//        }
-//    }
-//
-//    public static void delete(int idArticulo, Connection c) {
-//        
-//        PreparedStatement st;
-//
-//        try {
-//
-//            if (encontrarArticuloPorId(idArticulo) == null) {
-//                throw new SQLException("El id articulo: " + idArticulo + " no se encontro");
-//            }
-//
-//            c = UtilsConexion.conexion();
-//            st = c.prepareStatement(SQL_DELETE);
-//
-//            st.setInt(1, idArticulo);
-//
-//            st.executeUpdate();
-//
-//            UtilsConexion.closeConexion(c, st);
-//
-//        } catch (SQLException sqle) {
-//            System.out.println(sqle.getMessage());
-//        }
-//    }
+    // Falta mostrar mensaje si no hay nada
+    public static void showElementByCity(Connection c, String city) {
+
+        Scanner keybord = new Scanner(System.in);
+        PreparedStatement st;
+        ResultSet rs;
+
+        String sqlQuery = "select * from WeatherDataMZ06 where city = (?)";
+        int aux = 0;
+
+        try {
+
+            st = c.prepareStatement(sqlQuery);
+            st.setString(1, city);
+            rs = st.executeQuery();
+
+            while (rs.next()) {
+
+                aux++;
+
+                // funciona encara que per exemple record_id sea un enter
+                System.out.println("");
+                System.out.println("record_id -> " + rs.getString("record_id"));
+                System.out.println("city -> " + rs.getString("city"));
+                System.out.println("country -> " + rs.getString("country"));
+                System.out.println("latitude -> " + rs.getString("latitude"));
+                System.out.println("longitude -> " + rs.getString("longitude"));
+                System.out.println("date -> " + rs.getString("date"));
+                System.out.println("temperature_celcius -> " + rs.getString("temperature_celsius"));
+                System.out.println("humidity_percent -> " + rs.getString("humidity_percent"));
+                System.out.println("precipitation_mm -> " + rs.getString("precipitation_mm"));
+                System.out.println("wind_speed_kmh -> " + rs.getString("wind_speed_kmh"));
+                System.out.println("weather_condition -> " + rs.getString("weather_condition"));
+                System.out.println("forecast -> " + rs.getString("forecast"));
+                System.out.println("updated -> " + rs.getString("updated"));
+
+                if (aux % 2 == 0) { // MOSTRARAR DE DOS EN DOS
+
+                    System.out.println("Chafa un tecla per continuar ...");
+                    keybord.nextLine();
+
+                }
+
+            }
+
+        } catch (SQLException sqle) {
+
+            System.out.println("Error -> " + sqle.getMessage());
+
+        }
+
+    }
+
+    public static void syncDataFromMySQL(Connection mysqlConn, List<WeatherData> mongoDataList) {
+
+        for (WeatherData weatherData : mongoDataList) {
+            try {
+                // Verifica si el registro ya existe en MySQL (usando el recordId o algún identificador único)
+                String checkQuery = "SELECT * FROM WeatherData WHERE record_id = ?";
+                PreparedStatement stmt = mysqlConn.prepareStatement(checkQuery);
+                stmt.setInt(1, weatherData.getRecordId());
+                ResultSet rs = stmt.executeQuery();
+
+                if (!rs.next()) {
+                    // Si no existeis fa un insert
+                    String insertQuery = SQL_INSERT;
+                    PreparedStatement insertStmt = mysqlConn.prepareStatement(insertQuery);
+                    insertStmt.setInt(1, weatherData.getRecordId());
+                    insertStmt.setString(2, weatherData.getCity());
+                    insertStmt.setString(3, weatherData.getCountry());
+                    insertStmt.setDouble(4, weatherData.getLatitude());
+                    insertStmt.setDouble(5, weatherData.getLongitude());
+                    insertStmt.setTimestamp(6, weatherData.getDate());
+                    insertStmt.setDouble(7, weatherData.getTemperatureCelcius());
+                    insertStmt.setDouble(8, weatherData.getHumidityPercent());
+                    insertStmt.setDouble(9, weatherData.getPrecipitation_mm());
+                    insertStmt.setDouble(10, weatherData.getWind_speed_kmh());
+                    insertStmt.setString(11, weatherData.getWeather_condition());
+                    insertStmt.setString(12, weatherData.getForecast());
+                    insertStmt.setTimestamp(13, weatherData.getUpdated());
+                    insertStmt.executeUpdate();
+                } else {
+                    // Si existeix actualitza
+                    String updateQuery = SQL_UPDATE;
+                    PreparedStatement updateStmt = mysqlConn.prepareStatement(updateQuery);
+                    updateStmt.setString(1, weatherData.getCity());
+                    updateStmt.setString(2, weatherData.getCountry());
+                    updateStmt.setDouble(3, weatherData.getLatitude());
+                    updateStmt.setDouble(4, weatherData.getLongitude());
+                    updateStmt.setTimestamp(5, weatherData.getDate());
+                    updateStmt.setDouble(6, weatherData.getTemperatureCelcius());
+                    updateStmt.setDouble(7, weatherData.getHumidityPercent());
+                    updateStmt.setDouble(8, weatherData.getPrecipitation_mm());
+                    updateStmt.setDouble(9, weatherData.getWind_speed_kmh());
+                    updateStmt.setString(10, weatherData.getWeather_condition());
+                    updateStmt.setString(11, weatherData.getForecast());
+                    updateStmt.setTimestamp(12, weatherData.getUpdated());
+                    updateStmt.setInt(13, weatherData.getRecordId());
+                    updateStmt.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+    public static List<WeatherData> getMySQLData(Connection c) {
+
+        PreparedStatement st;
+        ResultSet rs;
+        List<WeatherData> dataList = new ArrayList<>();
+
+        String sqlQuery = "select * from WeatherDataMZ06";
+
+        try {
+
+            st = c.prepareStatement(sqlQuery);
+            rs = st.executeQuery();
+
+            while (rs.next()) {
+
+                // funciona encara que per exemple record_id sea un enter
+                int record_id = rs.getInt("record_id");
+                String city = rs.getString("city");
+                String country = rs.getString("country");
+                double latitude = rs.getDouble("latitude");
+                double longitude = rs.getDouble("longitude");
+                Timestamp date = rs.getTimestamp("date");
+                int temperature_celsius = rs.getInt("temperature_celsius");
+                int humidity_percent = rs.getInt("humidity_percent");
+                double precipitation_mm = rs.getDouble("precipitation_mm");
+                int wind_speed_kmh = rs.getInt("wind_speed_kmh");
+                String weather_condition = rs.getString("weather_condition");
+                String forecast = rs.getString("forecast");
+                Timestamp updated = rs.getTimestamp("updated");
+
+                WeatherData data = new WeatherData(record_id, city, country, latitude, longitude, date, temperature_celsius, humidity_percent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updated);
+
+                dataList.add(data);
+
+            }
+
+        } catch (SQLException sqle) {
+
+            System.out.println("Error -> " + sqle.getMessage());
+
+        }
+
+        return dataList;
+
+    }
+
+    // FALTA MOSTRAR MISSATGE SI ESTA BUIT
+    public static void showElementsByCities(Connection c, String[] city) {
+        String sqlQuery = "select * from WeatherDataMZ06 where city = (?)";
+
+        Scanner keyboard = new Scanner(System.in);
+        PreparedStatement st;
+        ResultSet rs;
+
+        int aux = 0;
+
+        try {
+
+            st = c.prepareStatement(sqlQuery);
+            st.setString(1, city[0]);
+
+            if (city.length == 1) {
+                rs = st.executeQuery();
+                while (rs.next()) {
+                    aux++;
+
+                    System.out.println("");
+                    System.out.println("record_id -> " + rs.getString("record_id"));
+                    System.out.println("city -> " + rs.getString("city"));
+                    System.out.println("country -> " + rs.getString("country"));
+                    System.out.println("latitude -> " + rs.getString("latitude"));
+                    System.out.println("longitude -> " + rs.getString("longitude"));
+                    System.out.println("date -> " + rs.getString("date"));
+                    System.out.println("temperature_celcius -> " + rs.getString("temperature_celsius"));
+                    System.out.println("humidity_percent -> " + rs.getString("humidity_percent"));
+                    System.out.println("precipitation_mm -> " + rs.getString("precipitation_mm"));
+                    System.out.println("wind_speed_kmh -> " + rs.getString("wind_speed_kmh"));
+                    System.out.println("weather_condition -> " + rs.getString("weather_condition"));
+                    System.out.println("forecast -> " + rs.getString("forecast"));
+                    System.out.println("updated -> " + rs.getString("updated"));
+
+                    if (aux % 2 == 0) {
+                        System.out.println("Presione una tecla para continuar ...");
+                        keyboard.nextLine();
+                    }
+                }
+            } else {
+
+                StringBuilder queryBuilder = new StringBuilder("select * from WeatherDataMZ06 where city = (?)");
+                for (int i = 1; i < city.length; i++) {
+                    queryBuilder.append(" or city = (?)");
+                }
+
+                st = c.prepareStatement(queryBuilder.toString());
+
+                for (int i = 0; i < city.length; i++) {
+                    st.setString(i + 1, city[i]);
+                }
+
+                // System.out.println(st.toString());  
+                rs = st.executeQuery();
+                while (rs.next()) {
+                    aux++;
+
+                    System.out.println("");
+                    System.out.println("record_id -> " + rs.getString("record_id"));
+                    System.out.println("city -> " + rs.getString("city"));
+                    System.out.println("country -> " + rs.getString("country"));
+                    System.out.println("latitude -> " + rs.getString("latitude"));
+                    System.out.println("longitude -> " + rs.getString("longitude"));
+                    System.out.println("date -> " + rs.getString("date"));
+                    System.out.println("temperature_celcius -> " + rs.getString("temperature_celsius"));
+                    System.out.println("humidity_percent -> " + rs.getString("humidity_percent"));
+                    System.out.println("precipitation_mm -> " + rs.getString("precipitation_mm"));
+                    System.out.println("wind_speed_kmh -> " + rs.getString("wind_speed_kmh"));
+                    System.out.println("weather_condition -> " + rs.getString("weather_condition"));
+                    System.out.println("forecast -> " + rs.getString("forecast"));
+                    System.out.println("updated -> " + rs.getString("updated"));
+
+                    if (aux % 2 == 0) {
+                        System.out.println("Presione una tecla para continuar ...");
+                        keyboard.nextLine();
+                    }
+                }
+            }
+
+        } catch (SQLException sqle) {
+            System.out.println("Error -> " + sqle.getMessage());
+        }
+    }
+
+    public static void deleteElementsByCities(Connection c, String[] city) {
+
+        showElementsByCities(c, city);
+        String sqlQuery = "delete from WeatherDataMZ06 where city = (?)";
+
+        PreparedStatement st;
+
+        int rowsAffected;
+        try {
+
+            st = c.prepareStatement(sqlQuery);
+            st.setString(1, city[0]);
+
+            if (city.length == 1) {
+
+                rowsAffected = st.executeUpdate();
+                System.out.println("Se han esborrat " + rowsAffected + " elements");
+
+            } else {
+
+                StringBuilder queryBuilder = new StringBuilder("delete from WeatherDataMZ06 where city = (?)");
+                for (int i = 1; i < city.length; i++) {
+                    queryBuilder.append(" or city = (?)");
+                }
+
+                st = c.prepareStatement(queryBuilder.toString());
+                System.out.println(queryBuilder.toString());
+
+                for (int i = 0; i < city.length; i++) {
+                    st.setString(i + 1, city[i]);
+                }
+
+                rowsAffected = st.executeUpdate();
+
+                System.out.println("Se han esborrat " + rowsAffected + " elements");
+            }
+
+        } catch (SQLException sqle) {
+            System.out.println("Error -> " + sqle.getMessage());
+        }
+
+    }
+
+    public static void deleteElementByCity(Connection conn, String city) {
+
+        showElementByCity(conn, city);
+        PreparedStatement st;
+
+        try {
+
+            st = conn.prepareStatement(SQL_DELETE);
+            st.setString(1, city);
+            int affectedElements = st.executeUpdate();
+
+            System.out.println("Se han borrat un quantitat de " + affectedElements + " elements");
+
+        } catch (SQLException e) {
+
+            System.out.println("Error -> " + e.getMessage());
+
+        }
+
+    }
+
+    public static void deleteAll(Connection c) {
+
+        String query = "delete from WeatherDataMZ06";
+        PreparedStatement st;
+        int rowsAffected = 0;
+
+        try {
+
+            st = c.prepareStatement(query);
+            rowsAffected = st.executeUpdate();
+
+            System.out.println("Nombre de elements afectats: " + rowsAffected);
+
+        } catch (SQLException e) {
+
+            System.out.println("Error -> " + e.getMessage());
+
+        }
+
+    }
+
     public static int getMySQLDataCounter(Connection c) {
 
         PreparedStatement st;
@@ -132,24 +439,20 @@ public class WeatherDataDAO {
     }
 
     public static void showElements(Connection c) {
-
-        Scanner keybord = new Scanner(System.in);
+        Scanner keyboard = new Scanner(System.in);
         PreparedStatement st;
         ResultSet rs;
 
-        String sqlQuery = "select * from WeatherDataMZ06";
+        String sqlQuery = "select * from WeatherDataMZ06 ORDER BY city ASC"; // 
         int aux = 0;
 
         try {
-
             st = c.prepareStatement(sqlQuery);
             rs = st.executeQuery();
 
             while (rs.next()) {
-
                 aux++;
 
-                // funciona encara que per exemple record_id sea un enter
                 System.out.println("");
                 System.out.println("record_id -> " + rs.getString("record_id"));
                 System.out.println("city -> " + rs.getString("city"));
@@ -165,21 +468,15 @@ public class WeatherDataDAO {
                 System.out.println("forecast -> " + rs.getString("forecast"));
                 System.out.println("updated -> " + rs.getString("updated"));
 
-                if (aux % 2 == 0 ) { // MOSTRARAR DE DOS EN DOS
-
-                    System.out.println("Chafa un tecla per continuar ...");
-                    keybord.nextLine();
-
+                if (aux % 2 == 0) {
+                    System.out.println("Chafa una tecla per continuar ...");
+                    keyboard.nextLine();
                 }
-
             }
 
         } catch (SQLException sqle) {
-
             System.out.println("Error -> " + sqle.getMessage());
-
         }
-
     }
 
 }
