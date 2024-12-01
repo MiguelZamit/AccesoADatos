@@ -210,7 +210,7 @@ public class ConexionMongoDB {
 
     }
 
-    public static void upsert(MongoClient mongo, List<WeatherData> data) {
+    public static void syncDataBase(MongoClient mongo, List<WeatherData> data) {
         List<WeatherData> mysqlDataList = data;
         MongoCollection<Document> col = mongo.getDatabase("WeatherData").getCollection("WeatherDataMZ06");
 
@@ -236,8 +236,10 @@ public class ConexionMongoDB {
 
     }
 
-    public static void upsert(MongoClient mongo, WeatherData data) {
-        WeatherData mysqlDataList = data;
+    public static void upsert(WeatherData data) {
+
+        MongoClient mongo = connectToMongoClient();
+
         MongoCollection<Document> col = mongo.getDatabase("WeatherData").getCollection("WeatherDataMZ06");
 
         Document filter = new Document("record_id", data.getRecordId());
@@ -325,11 +327,10 @@ public class ConexionMongoDB {
         Document query = new Document("city", new Document("$in", cities));
 
         try {
-            // Intentar realizar una operación sencilla para verificar la conexión
-            MongoIterable<String> databases = mongo.listDatabaseNames();
-            databases.first(); // Si la conexión falla, esta línea lanzará una excepción
 
-            // Si la conexión es exitosa, continuamos con la consulta
+            MongoIterable<String> databases = mongo.listDatabaseNames();
+            databases.first();
+
             for (Document doc : collection.find(query)) {
                 System.out.println("");
                 System.out.println("record_id -> " + doc.getInteger("record_id"));
@@ -419,6 +420,53 @@ public class ConexionMongoDB {
         }
 
         return max + 1;
+
+    }
+
+    public static void showRecordsIds() {
+
+        MongoClient mongo = connectToMongoClient();
+        MongoDatabase database = selectDBMongo(mongo, "WeatherData");
+        MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
+
+        Bson projection = Projections.fields(
+                Projections.include("record_id"),
+                Projections.excludeId());
+
+        MongoCursor<Document> cursor = col.find().projection(projection).iterator();
+        while (cursor.hasNext()) {
+
+            Document item = cursor.next();
+            System.out.println("record_id -> " + item.getInteger("record_id"));
+
+        }
+
+    }
+
+    public static void showRecordById(MongoClient conn, int record_id) {
+
+        MongoDatabase database = selectDBMongo(conn, "WeatherData");
+        MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
+
+        MongoCursor<Document> cursor = col.find().iterator();
+        try {
+
+     
+
+            while (cursor.hasNext()) {
+
+                Document d = cursor.next();
+
+                if (d.getInteger("record_id") == record_id) {
+
+                    System.out.println(d.toJson());
+
+                }
+
+            }
+        } catch (Exception e) {
+            System.out.println("Error al mostrar los elementos: " + e.getMessage());
+        }
 
     }
 

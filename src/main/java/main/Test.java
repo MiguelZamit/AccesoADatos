@@ -482,7 +482,7 @@ public class Test {
                             WeatherDataDAO.syncDataFromMySQL(conMySQL, listFromMongo);
 
                             List<WeatherData> listFromMySQL = WeatherDataDAO.getMySQLData(conMySQL);
-                            ConexionMongoDB.upsert(conMongo, listFromMySQL);
+                            ConexionMongoDB.syncDataBase(conMongo, listFromMySQL);
 
                             System.out.println("Sincronització completada!");
                         } else {
@@ -490,7 +490,14 @@ public class Test {
                             if (database.equalsIgnoreCase("MongoDB")) {
 
                                 System.out.println("Upsert de un element:");
-
+                                
+                                System.out.println("Dime el record_id que vols modificar: ");
+                                System.out.println("records_id disponibles: \n");
+                                ConexionMongoDB.showRecordsIds();
+                                
+                                int record_id = Integer.parseInt(TECLADO.nextLine());
+                                System.out.println("");
+                                
                                 System.out.print("city -> ");
                                 String city = TECLADO.nextLine();
 
@@ -564,10 +571,12 @@ public class Test {
                                 Timestamp updatedTimeStamp = Timestamp.from(Instant.now());
 
                                 // Pregunte noves dades y les cambie
-                                WeatherData w = new WeatherData(city, country, latitude, longitude, dateTimeStamp, temperatureCelcius, humidityPercent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updatedTimeStamp);
+                                WeatherData w = new WeatherData(record_id, city, country, latitude, longitude, dateTimeStamp, temperatureCelcius, humidityPercent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updatedTimeStamp);
 
-                                ConexionMongoDB.upsert(conMongo, w); // Implementa esta función
-
+                                ConexionMongoDB.upsert(w); 
+                                System.out.println("\nElement actualitzat amb exit");
+                                ConexionMongoDB.showRecordById(conMongo, record_id);
+                                
                             }
 
                             System.out.println("Importar elements MySQL");
@@ -582,6 +591,13 @@ public class Test {
                             if (database.equalsIgnoreCase("MongoDB")) {
 
                                 System.out.println("Upsert de un element:");
+                                
+                                System.out.println("Dime el record id que vols actualizar \nrecord_id -> ");
+                                
+                                System.out.println("record_id disponibles -> ");
+                                ConexionMongoDB.showRecordsIds();
+                                
+                                int record_id = Integer.parseInt(TECLADO.nextLine());
 
                                 System.out.print("city -> ");
                                 String city = TECLADO.nextLine();
@@ -656,10 +672,13 @@ public class Test {
                                 Timestamp updatedTimeStamp = Timestamp.from(Instant.now());
 
                                 // Pregunte noves dades y les cambie
-                                WeatherData w = new WeatherData(city, country, latitude, longitude, dateTimeStamp, temperatureCelcius, humidityPercent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updatedTimeStamp);
+                                WeatherData w = new WeatherData(record_id, city, country, latitude, longitude, dateTimeStamp, temperatureCelcius, humidityPercent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updatedTimeStamp);
 
-                                ConexionMongoDB.upsert(conMongo, w); // Implementa esta función
+                                ConexionMongoDB.upsert(w); // Implementa esta función // Me ix el metode should be open que es com que se perd la conexio
 
+                                System.out.println("Element actualitzat amb exit");
+                                
+                                ConexionMongoDB.showRecordById(conMongo, record_id);
                             } else {
 
                                 System.out.println("Importar elements a MYSQL ...");
