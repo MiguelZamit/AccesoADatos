@@ -8,6 +8,7 @@ import com.mongodb.client.MongoIterable;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import com.mongodb.BasicDBObject;
+import com.mongodb.Mongo;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.Projections;
@@ -15,7 +16,10 @@ import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.UpdateOptions;
 import domain.WeatherData;
 import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Scanner;
 import org.bson.Document;
@@ -134,7 +138,6 @@ public class ConexionMongoDB {
             MongoDatabase database = selectDBMongo(conn, "WeatherData");
             MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
 
-            // Cuenta directamente los documentos de la colección
             counter = (int) col.countDocuments();
         } catch (Exception e) {
             System.out.println("Error al contar los documentos: " + e.getMessage());
@@ -145,7 +148,7 @@ public class ConexionMongoDB {
         return counter;
     }
 
-    public static void showElements(MongoClient conn) { // Ordenat alfabeticamente
+    public static void showElements(MongoClient conn) { // Ordenat alfabeticament
         MongoDatabase database = selectDBMongo(conn, "WeatherData");
         MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
 
@@ -210,32 +213,33 @@ public class ConexionMongoDB {
 
     }
 
-    public static void syncDataBase(MongoClient mongo, List<WeatherData> data) {
-        List<WeatherData> mysqlDataList = data;
-        MongoCollection<Document> col = mongo.getDatabase("WeatherData").getCollection("WeatherDataMZ06");
-
-        for (WeatherData weatherData : mysqlDataList) {
-            Document filter = new Document("record_id", weatherData.getRecordId());
-
-            Document updateDoc = new Document("$set", new Document("city", weatherData.getCity())
-                    .append("country", weatherData.getCountry())
-                    .append("latitude", weatherData.getLatitude())
-                    .append("longitude", weatherData.getLongitude())
-                    .append("date", weatherData.getDate())
-                    .append("temperature_celsius", weatherData.getTemperatureCelcius())
-                    .append("humidity_percent", weatherData.getHumidityPercent())
-                    .append("precipitation_mm", weatherData.getPrecipitation_mm())
-                    .append("wind_speed_kmh", weatherData.getWind_speed_kmh())
-                    .append("weather_condition", weatherData.getWeather_condition())
-                    .append("forecast", weatherData.getForecast())
-                    .append("updated", weatherData.getUpdated()));
-
-            // Si el element no existeix el actualitza i el fica
-            col.updateOne(filter, updateDoc, new UpdateOptions().upsert(true));
-        }
-
-    }
-
+//    public static void syncDataBase(List<WeatherData> data) {
+//
+//        MongoClient mongo = ConexionMongoDB.connectToMongoClient();
+//        List<WeatherData> mysqlDataList = data;
+//        MongoCollection<Document> col = mongo.getDatabase("WeatherData").getCollection("WeatherDataMZ06");
+//
+//        for (WeatherData weatherData : mysqlDataList) {
+//            Document filter = new Document("record_id", weatherData.getRecordId());
+//
+//            Document updateDoc = new Document("$set", new Document("city", weatherData.getCity())
+//                    .append("country", weatherData.getCountry())
+//                    .append("latitude", weatherData.getLatitude())
+//                    .append("longitude", weatherData.getLongitude())
+//                    .append("date", weatherData.getDate())
+//                    .append("temperature_celsius", weatherData.getTemperatureCelcius())
+//                    .append("humidity_percent", weatherData.getHumidityPercent())
+//                    .append("precipitation_mm", weatherData.getPrecipitation_mm())
+//                    .append("wind_speed_kmh", weatherData.getWind_speed_kmh())
+//                    .append("weather_condition", weatherData.getWeather_condition())
+//                    .append("forecast", weatherData.getForecast())
+//                    .append("updated", weatherData.getUpdated()));
+//
+//            // Si el element no existeix el actualitza i el fica
+//            col.updateOne(filter, updateDoc, new UpdateOptions().upsert(true));
+//        }
+//
+//    }
     public static void upsert(WeatherData data) {
 
         MongoClient mongo = connectToMongoClient();
@@ -264,48 +268,160 @@ public class ConexionMongoDB {
 
     public static List<WeatherData> getMongoDBData(MongoClient conn) {
 
-        MongoDatabase database = selectDBMongo(conn, "WeatherData");
+        MongoDatabase database = ConexionMongoDB.selectDBMongo(conn, "WeatherData");
         MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
+        List<WeatherData> list = new ArrayList<>();
 
-        List<WeatherData> weatherDataList = new ArrayList<>();
+        MongoCursor<Document> cursor = col.find().iterator();
 
-        try (
-                 MongoCursor<Document> cursor = col.find().iterator()) {
-            while (cursor.hasNext()) {
-                Document document = cursor.next();
+        while (cursor.hasNext()) {
 
-                String dateString = document.getString("date");
-                String updatedString = document.getString("updated");
+            Document doc = cursor.next();
 
-                Timestamp date = dateString != null ? Timestamp.valueOf(dateString.replace("T", " ").substring(0, 19)) : null;
-                Timestamp updated = updatedString != null ? Timestamp.valueOf(updatedString.replace("T", " ").substring(0, 19)) : null;
-
-                WeatherData weatherData = new WeatherData(
-                        document.getInteger("recordId"),
-                        document.getString("city"),
-                        document.getString("country"),
-                        document.getDouble("latitude"),
-                        document.getDouble("longitude"),
-                        date, // Convertido a Timestamp
-                        document.getInteger("temperature_celsius"),
-                        document.getInteger("humidity_percent"),
-                        document.getDouble("precipitation_mm"),
-                        document.getInteger("wind_speed_kmh"),
-                        document.getString("weather_condition"),
-                        document.getString("forecast"),
-                        updated // Convertido a Timestamp
-                );
-
-                weatherDataList.add(weatherData);
+            int record_id;
+            try {
+                record_id = doc.getInteger("record_id");
+            } catch (NullPointerException e) {
+                record_id = 0;
             }
-        } catch (Exception e) {
-            System.out.println("Error al obtener datos: " + e.getMessage());
-            e.printStackTrace();
+
+            String city = doc.getString("city");
+            String country = doc.getString("country");
+            double latitude = doc.getDouble("latitude");
+            double longitude = doc.getDouble("longitude");
+
+            String date = "";
+            try {
+
+                date  = doc.getString("date");
+                
+            } catch (Exception e) {
+                System.out.println(e.getMessage() + " Error al obtener la fecha");
+            }
+
+            Timestamp dateToTimestamp = null;
+            try {
+                
+                dateToTimestamp = stringToTimestamp(date);
+            } catch (Exception e) {
+               
+                dateToTimestamp = null;
+            }
+
+            int temperature_celcius = doc.getInteger("temperature_celcius", 0);
+            int humidity_percent = doc.getInteger("humidity_percent", 0);
+
+            double precipitation_mm;
+            try {
+                precipitation_mm = doc.getDouble("precipitation_mm");
+            } catch (Exception e) {
+                int aux = doc.getInteger("precipitation_mm");
+                precipitation_mm = (int) aux;
+            }
+
+            int wind_speed_kmh = doc.getInteger("wind_speed_kmh", 0);
+            String weather_condition = doc.getString("weather_condition");
+            String forecast = doc.getString("forecast");
+
+            // Obtener la fecha actual para el campo `update`
+            Timestamp update = new Timestamp(System.currentTimeMillis());
+
+            WeatherData weatherData = new WeatherData(record_id, city, country, latitude, longitude, dateToTimestamp, temperature_celcius, humidity_percent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, update);
+
+            list.add(weatherData);
         }
 
-        return weatherDataList;
+        return list;
     }
 
+    public static String convertDateToString(Date date) {
+        // Define el formato deseado para la fecha
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+        // Convierte el Date a String usando el formato
+        return formatter.format(date);
+    }
+
+    public static Timestamp stringToTimestamp(String dateString) {
+        Timestamp timestamp;
+        try {
+            // Define el formato de la fecha según el formato del string
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+            // Convierte el String a un objeto java.util.Date
+            java.util.Date parsedDate = dateFormat.parse(dateString);
+
+            // Convierte el java.util.Date a java.sql.Timestamp
+            timestamp = new Timestamp(parsedDate.getTime());
+        } catch (ParseException e) {
+            return null;
+        }
+        return timestamp;
+    }
+
+//    public static List<WeatherData> getMongoDBData(MongoClient conn) {
+//
+//        MongoDatabase database = selectDBMongo(conn, "WeatherData");
+//        MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
+//
+//        List<WeatherData> weatherDataList = new ArrayList<>();
+//
+//        try {
+//
+//            MongoCursor<Document> cursor = col.find().iterator();
+//
+//            while (cursor.hasNext()) {
+//                Document document = cursor.next();
+//                Date date;
+//
+//                String dateString;
+//                try {
+//                    date = document.getDate("date");
+//                } catch (Exception e) {
+//                    dateString = document.getString("date");
+//                }
+//
+//                Date updated = document.getDate("updated");
+//
+//                Timestamp dateToTimeStamp;
+//                if (date != null) {
+//                    dateToTimeStamp = new Timestamp(date.getTime());
+//                } else {
+//                    dateToTimeStamp = null;
+//                }
+//
+//                Timestamp updatedToTimeStamp;
+//                if (updated != null) {
+//                    updatedToTimeStamp = new Timestamp(updated.getTime());
+//                } else {
+//                    updatedToTimeStamp = null;
+//                }
+//
+//                WeatherData weatherData = new WeatherData(
+//                        document.getInteger("record_id"),
+//                        document.getString("city"),
+//                        document.getString("country"),
+//                        document.getDouble("latitude"),
+//                        document.getDouble("longitude"),
+//                        dateToTimeStamp, // Convertido a Timestamp
+//                        document.getInteger("temperature_celsius"),
+//                        document.getInteger("humidity_percent"),
+//                        document.getDouble("precipitation_mm"),
+//                        document.getInteger("wind_speed_kmh"),
+//                        document.getString("weather_condition"),
+//                        document.getString("forecast"),
+//                        updatedToTimeStamp // Convertido a Timestamp
+//                );
+//
+//                weatherDataList.add(weatherData);
+//            }
+//        } catch (Exception e) {
+//            System.out.println("Error al obtener datos: " + e.getMessage());
+//            e.printStackTrace();
+//        }
+//
+//        return weatherDataList;
+//    }
     // Aquest metodes es la valid para el driver de mongo
     public static void showElementsByCities(List<String> cities) {
 
@@ -371,19 +487,23 @@ public class ConexionMongoDB {
             // Crear un documento con los datos
             // System.out.println(getLastId());
 
+            String aux = timestampToString(date);
+            String aux2 = timestampToString(updated);
+            
+            
             Document doc = new Document("record_id", getLastId())
                     .append("city", city)
                     .append("country", country)
                     .append("latitude", latitude)
                     .append("longitude", longitude)
-                    .append("date", date.toInstant().toString()) // Convertir Timestamp a ISO 8601
+                    .append("date", aux)
                     .append("temperature_celsius", temperatureCelsius)
                     .append("humidity_percent", humidityPercent)
                     .append("precipitation_mm", precipitationMm)
                     .append("wind_speed_kmh", windSpeedKmh)
                     .append("weather_condition", weatherCondition)
                     .append("forecast", forecast)
-                    .append("updated", updated.toInstant().toString()); // Convertir Timestamp a ISO 8601
+                    .append("updated", aux2);
 
             // Insertar el documento en la colección
             col.insertOne(doc);
@@ -393,6 +513,19 @@ public class ConexionMongoDB {
             System.out.println("Error al insertar el documento en MongoDB: " + e.getMessage());
         }
 
+    }
+
+    // Tinc que borrar el altre
+    public static String timestampToString(Timestamp timestamp) {
+        if (timestamp == null) {
+            return null; // Retorna null si el timestamp es nulo
+        }
+
+        // Define el formato de fecha que deseas
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
+
+        // Convierte el Timestamp a String
+        return sdf.format(timestamp);
     }
 
     public static int getLastId() {
@@ -451,8 +584,6 @@ public class ConexionMongoDB {
         MongoCursor<Document> cursor = col.find().iterator();
         try {
 
-     
-
             while (cursor.hasNext()) {
 
                 Document d = cursor.next();
@@ -506,6 +637,37 @@ public class ConexionMongoDB {
         filter.put("$or", obj);
 
         col.deleteMany(filter);
+
+    }
+
+    public static void insertWeatherData(WeatherData w) {
+        MongoClient mongo = connectToMongoClient();
+        MongoDatabase database = mongo.getDatabase("WeatherData");
+        MongoCollection<Document> collection = database.getCollection("WeatherDataMZ06");
+
+        
+        Timestamp temp = w.getDate();
+        Timestamp temp2 = w.getUpdated();
+        
+        String aux = timestampToString(temp);
+        String aux2 = timestampToString(temp2);
+        
+        Document document = new Document()
+                .append("recordId", w.getRecordId())
+                .append("city", w.getCity())
+                .append("country", w.getCountry())
+                .append("latitude", w.getLatitude())
+                .append("longitude", w.getLongitude())
+                .append("date", aux) // Per si me dona el problema de String o Date 2023-11-10 00:00:00
+                .append("temperature_celsius", w.getTemperatureCelcius())
+                .append("humidity_percent", w.getHumidityPercent())
+                .append("precipitation_mm", w.getPrecipitation_mm())
+                .append("wind_speed_kmh", w.getWind_speed_kmh())
+                .append("weather_condition", w.getWeather_condition())
+                .append("forecast", w.getForecast())
+                .append("updated", aux2); // Per si me dona el problema de String o Date
+
+        collection.insertOne(document);
 
     }
 

@@ -17,11 +17,11 @@ import java.util.Scanner;
 public class WeatherDataDAO {
 
     private static final String SQL_INSERT = "INSERT INTO WeatherDataMZ06 "
-            + "(record_id, city, country, latitude, longitude, date, temperature_celsius, "
+            + "(city, country, latitude, longitude, date, temperature_celsius, "
             + "humidity_percent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updated) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            + "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    private static final String SQL_UPDATE = "UPDATE WeatherData SET city = ?, country = ?, latitude = ?, longitude = ?, date = ?, temperature_celsius = ?, humidity_percent = ?, precipitation_mm = ?, wind_speed_kmh = ?, weather_condition = ?, forecast = ?, updated = ? WHERE recordId = ?";
+    private static final String SQL_UPDATE = "UPDATE WeatherDataMZ06 SET city = ?, country = ?, latitude = ?, longitude = ?, date = ?, temperature_celsius = ?, humidity_percent = ?, precipitation_mm = ?, wind_speed_kmh = ?, weather_condition = ?, forecast = ?, updated = ? WHERE record_id = ?";
     private static final String SQL_DELETE = "delete from WeatherDataMZ06 where city = (?)";
     private static final String SQL_SELECT = "select count(*) as counter from WeatherDataMZ06"; //Preguntar si la tabla la tinc que disar aixina
 
@@ -33,20 +33,19 @@ public class WeatherDataDAO {
 
         try {
             st = c.prepareStatement(SQL_INSERT);
-            
-            st.setInt(1, getLastId());
-            st.setString(2, city);
-            st.setString(3, country);
-            st.setDouble(4, latitude);
-            st.setDouble(5, longitude);
-            st.setTimestamp(6, date);
-            st.setInt(7, temperatureCelsius);
-            st.setInt(8, humidityPercent);
-            st.setDouble(9, precipitationMm);
-            st.setInt(10, windSpeedKmh);
-            st.setString(11, weatherCondition);
-            st.setString(12, forecast);
-            st.setTimestamp(13, updated);
+
+            st.setString(1, city);
+            st.setString(2, country);
+            st.setDouble(3, latitude);
+            st.setDouble(4, longitude);
+            st.setTimestamp(5, date);
+            st.setInt(6, temperatureCelsius);
+            st.setInt(7, humidityPercent);
+            st.setDouble(8, precipitationMm);
+            st.setInt(9, windSpeedKmh);
+            st.setString(10, weatherCondition);
+            st.setString(11, forecast);
+            st.setTimestamp(12, updated);
 
             st.executeUpdate();
             System.out.println("Registro insertado correctamente.");
@@ -62,36 +61,6 @@ public class WeatherDataDAO {
             }
         }
     }
-    
-            
-    private static int getLastId(){
-        
-        Connection c;
-        PreparedStatement st;
-        ResultSet rs;
-        String query = "select max(record_id) as max from WeatherDataMZ06";
-        
-        int autoincrementId = 0;
-        try{
-            
-            c = ConexionMySQL.getConnection();
-            st = c.prepareStatement(query);
-            rs = st.executeQuery();
-            
-            rs.next();
-            
-            autoincrementId = rs.getInt("max");
-            
-        }catch(SQLException sqle){
-            
-            System.out.println("Error -> "+sqle.getMessage());
-            
-        }
-        
-        return autoincrementId + 1;
-        
-    }        
-            
 
     // Falta mostrar mensaje si no hay nada
     public static void showElementByCity(Connection c, String city) {
@@ -150,15 +119,20 @@ public class WeatherDataDAO {
 
         for (WeatherData weatherData : mongoDataList) {
             try {
-                // Verifica si el registro ya existe en MySQL (usando el recordId o algún identificador único)
-                String checkQuery = "SELECT * FROM WeatherData WHERE record_id = ?";
+
+                String checkQuery = "SELECT * FROM WeatherDataMZ06 WHERE record_id = ?";
                 PreparedStatement stmt = mysqlConn.prepareStatement(checkQuery);
                 stmt.setInt(1, weatherData.getRecordId());
                 ResultSet rs = stmt.executeQuery();
 
+                String query = "INSERT INTO WeatherDataMZ06 "
+                        + "(record_id, city, country, latitude, longitude, date, temperature_celsius, "
+                        + "humidity_percent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updated) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
                 if (!rs.next()) {
-                    // Si no existeis fa un insert
-                    String insertQuery = SQL_INSERT;
+
+                    String insertQuery = query;
                     PreparedStatement insertStmt = mysqlConn.prepareStatement(insertQuery);
                     insertStmt.setInt(1, weatherData.getRecordId());
                     insertStmt.setString(2, weatherData.getCity());
@@ -175,7 +149,7 @@ public class WeatherDataDAO {
                     insertStmt.setTimestamp(13, weatherData.getUpdated());
                     insertStmt.executeUpdate();
                 } else {
-                    // Si existeix actualitza
+
                     String updateQuery = SQL_UPDATE;
                     PreparedStatement updateStmt = mysqlConn.prepareStatement(updateQuery);
                     updateStmt.setString(1, weatherData.getCity());
@@ -196,6 +170,39 @@ public class WeatherDataDAO {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
+        }
+
+    }
+
+    public static void insert(Connection c, WeatherData w) {
+
+        PreparedStatement st;
+
+        String query = "INSERT INTO WeatherDataMZ06 "
+                + "(record_id, city, country, latitude, longitude, date, temperature_celsius, "
+                + "humidity_percent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updated) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        try {
+            st = c.prepareStatement(query);
+
+            st.setInt(1, w.getRecordId());
+            st.setString(2, w.getCity());
+            st.setString(3, w.getCountry());
+            st.setDouble(4, w.getLatitude());
+            st.setDouble(5, w.getLongitude());
+            st.setTimestamp(6, w.getDate());
+            st.setInt(7, w.getTemperatureCelcius());
+            st.setInt(8, w.getHumidityPercent());
+            st.setDouble(9, w.getPrecipitation_mm());
+            st.setInt(10, w.getWind_speed_kmh());
+            st.setString(11, w.getWeather_condition());
+            st.setString(12, w.getForecast());
+            st.setTimestamp(13, w.getUpdated());
+
+            st.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Error -> " + e.getMessage());
         }
 
     }

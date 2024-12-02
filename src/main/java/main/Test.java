@@ -478,13 +478,39 @@ public class Test {
                                 System.out.println("Error -> " + ie.getMessage());
                             }
                             // Sincronizar datos entre MongoDB y MySQL
+                            
+                            
+                            // Agafe primer les dades de les dueps bases de dades
                             List<WeatherData> listFromMongo = ConexionMongoDB.getMongoDBData(conMongo);
-                            WeatherDataDAO.syncDataFromMySQL(conMySQL, listFromMongo);
-
                             List<WeatherData> listFromMySQL = WeatherDataDAO.getMySQLData(conMySQL);
-                            ConexionMongoDB.syncDataBase(conMongo, listFromMySQL);
+                            
+                            // Elimine le dades
+                            
+                            ConexionMongoDB.deleteAll(conMongo);
+                            WeatherDataDAO.deleteAll(conMySQL);
+                            
+                            // Insert les dades que hem guardat
+                            
+                            
+                            for (WeatherData w: listFromMySQL){
+                                
+                                ConexionMongoDB.insertWeatherData(w);
+                                
+                            }
+                            
+                            for (WeatherData w: listFromMongo){
+                                
+                                WeatherDataDAO.insert(conMySQL, w);
+                                
+                            }
+                            // Creo que el MySQL funciona bien
+                            // WeatherDataDAO.syncDataFromMySQL(conMySQL, listFromMongo);
+                            
+                            
 
                             System.out.println("Sincronització completada!");
+                            
+                            
                         } else {
 
                             if (database.equalsIgnoreCase("MongoDB")) {
@@ -592,7 +618,7 @@ public class Test {
 
                                 System.out.println("Upsert de un element:");
                                 
-                                System.out.println("Dime el record id que vols actualizar \nrecord_id -> ");
+                                System.out.println("Dime el record id que vols actualizar");
                                 
                                 System.out.println("record_id disponibles -> ");
                                 ConexionMongoDB.showRecordsIds();
@@ -731,7 +757,7 @@ public class Test {
                         }
                         break;
 
-                    case 7: // Salir
+                    case 7: 
 
                         if (synchronizeOption && database.equalsIgnoreCase("MongoDB")) {
 
