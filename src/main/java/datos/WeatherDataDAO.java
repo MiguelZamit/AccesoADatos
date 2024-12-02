@@ -106,6 +106,12 @@ public class WeatherDataDAO {
                 }
 
             }
+            
+            if (aux == 0){ // Ja que si aux no aumenta pues es com un indicar de que si hi han registres
+                
+                System.out.println("No se han trobat cap resultats per la ciutat insertada");
+                
+            }
 
         } catch (SQLException sqle) {
 
@@ -292,7 +298,15 @@ public class WeatherDataDAO {
                         System.out.println("Presione una tecla para continuar ...");
                         keyboard.nextLine();
                     }
+                    
+                    
                 }
+                
+                if (aux == 0){
+                        
+                        System.out.println("No se han trobat cap resultats per la ciutat insertada");
+                        
+                    }
             } else {
 
                 StringBuilder queryBuilder = new StringBuilder("select * from WeatherDataMZ06 where city = (?)");
@@ -331,6 +345,13 @@ public class WeatherDataDAO {
                         keyboard.nextLine();
                     }
                 }
+                
+                if (aux == 0){
+                    
+                    System.out.println("No se han trobat cap resultats per la ciutat insertada");
+                    
+                }
+                
             }
 
         } catch (SQLException sqle) {
@@ -480,10 +501,43 @@ public class WeatherDataDAO {
                     keyboard.nextLine();
                 }
             }
+            
+            if (aux == 0){
+                
+                System.out.println("No queda cap registres açi");
+                
+            }
 
         } catch (SQLException sqle) {
             System.out.println("Error -> " + sqle.getMessage());
         }
+    }
+    
+    public static void showCities(Connection c){
+        
+        PreparedStatement st;
+        ResultSet rs;
+        
+        String query = "select city from WeatherDataMZ06";
+        
+        try{
+            
+            st = c.prepareStatement(query);
+            rs = st.executeQuery();
+            
+            System.out.println("Ciuatats disponibles: ");
+            while(rs.next()){
+                
+                System.out.println("-> "+rs.getString("city"));
+                
+            }
+            
+        }catch(SQLException sqle){
+            
+            System.out.println(sqle.getMessage());
+            
+        }
+        
     }
 
 }

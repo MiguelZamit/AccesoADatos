@@ -168,6 +168,12 @@ public class ConexionMongoDB {
                     keyboard.nextLine();
                 }
             }
+            
+            if (aux == 0){
+                
+                System.out.println("No queda cap registres açi");
+                
+            }
         } catch (Exception e) {
             System.out.println("Error al mostrar los elementos: " + e.getMessage());
         }
@@ -207,39 +213,19 @@ public class ConexionMongoDB {
                 }
 
             }
+
+            if (aux == 0) {
+
+                System.out.println("No se han trobat cap resultats per la ciutat insertada");
+
+            }
         } catch (Exception e) {
             System.out.println("Error al mostrar los elementos: " + e.getMessage());
         }
 
     }
 
-//    public static void syncDataBase(List<WeatherData> data) {
-//
-//        MongoClient mongo = ConexionMongoDB.connectToMongoClient();
-//        List<WeatherData> mysqlDataList = data;
-//        MongoCollection<Document> col = mongo.getDatabase("WeatherData").getCollection("WeatherDataMZ06");
-//
-//        for (WeatherData weatherData : mysqlDataList) {
-//            Document filter = new Document("record_id", weatherData.getRecordId());
-//
-//            Document updateDoc = new Document("$set", new Document("city", weatherData.getCity())
-//                    .append("country", weatherData.getCountry())
-//                    .append("latitude", weatherData.getLatitude())
-//                    .append("longitude", weatherData.getLongitude())
-//                    .append("date", weatherData.getDate())
-//                    .append("temperature_celsius", weatherData.getTemperatureCelcius())
-//                    .append("humidity_percent", weatherData.getHumidityPercent())
-//                    .append("precipitation_mm", weatherData.getPrecipitation_mm())
-//                    .append("wind_speed_kmh", weatherData.getWind_speed_kmh())
-//                    .append("weather_condition", weatherData.getWeather_condition())
-//                    .append("forecast", weatherData.getForecast())
-//                    .append("updated", weatherData.getUpdated()));
-//
-//            // Si el element no existeix el actualitza i el fica
-//            col.updateOne(filter, updateDoc, new UpdateOptions().upsert(true));
-//        }
-//
-//    }
+
     public static void upsert(WeatherData data) {
 
         MongoClient mongo = connectToMongoClient();
@@ -293,18 +279,18 @@ public class ConexionMongoDB {
             String date = "";
             try {
 
-                date  = doc.getString("date");
-                
+                date = doc.getString("date");
+
             } catch (Exception e) {
                 System.out.println(e.getMessage() + " Error al obtener la fecha");
             }
 
             Timestamp dateToTimestamp = null;
             try {
-                
+
                 dateToTimestamp = stringToTimestamp(date);
             } catch (Exception e) {
-               
+
                 dateToTimestamp = null;
             }
 
@@ -427,27 +413,23 @@ public class ConexionMongoDB {
 
         MongoClient mongo = connectToMongoClient();
 
-        if (mongo == null) {
-            System.out.println("La conexión a MongoDB no está abierta.");
-            return;
-        }
-
         MongoDatabase database = mongo.getDatabase("WeatherData");
         MongoCollection<Document> collection = database.getCollection("WeatherDataMZ06");
 
-        if (cities == null || cities.isEmpty()) {
-            System.out.println("No se han proporcionado ciudades.");
+        if (cities.isEmpty()) {
+            System.out.println("No has insertat cap ciutat");
             return;
         }
 
         Document query = new Document("city", new Document("$in", cities));
-
+        int aux = 0;
         try {
 
-            MongoIterable<String> databases = mongo.listDatabaseNames();
-            databases.first();
+//            MongoIterable<String> databases = mongo.listDatabaseNames();
+//            databases.first();
 
             for (Document doc : collection.find(query)) {
+                aux++;
                 System.out.println("");
                 System.out.println("record_id -> " + doc.getInteger("record_id"));
                 System.out.println("city -> " + doc.getString("city"));
@@ -470,6 +452,12 @@ public class ConexionMongoDB {
                 System.out.println("forecast -> " + doc.getString("forecast"));
                 System.out.println("updated -> " + doc.getString("updated"));
             }
+            
+            if (aux == 0){
+                
+                System.out.println("No se han trobat cap dades de les ciutats insertades");
+                
+            }
         } catch (Exception e) {
             System.out.println("Error al ejecutar la consulta: " + e.getMessage());
             e.printStackTrace();
@@ -489,8 +477,7 @@ public class ConexionMongoDB {
 
             String aux = timestampToString(date);
             String aux2 = timestampToString(updated);
-            
-            
+
             Document doc = new Document("record_id", getLastId())
                     .append("city", city)
                     .append("country", country)
@@ -575,6 +562,30 @@ public class ConexionMongoDB {
         }
 
     }
+    
+    public static void showCities(MongoClient conn) {
+
+        MongoDatabase database = selectDBMongo(conn, "WeatherData");
+        MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
+
+        Bson projection = Projections.fields(
+                Projections.include("city"),
+                Projections.excludeId());
+        
+        MongoCursor<Document> cursor = col.find().projection(projection).iterator();
+        
+        System.out.println("Ciutats disponibles: ");
+        int aux = 0;
+        while (cursor.hasNext()) {            
+            aux++;
+            Document doc = cursor.next();
+            System.out.println("-> "+doc.getString("city"));
+            
+        }
+            
+        
+
+    }
 
     public static void showRecordById(MongoClient conn, int record_id) {
 
@@ -645,13 +656,12 @@ public class ConexionMongoDB {
         MongoDatabase database = mongo.getDatabase("WeatherData");
         MongoCollection<Document> collection = database.getCollection("WeatherDataMZ06");
 
-        
         Timestamp temp = w.getDate();
         Timestamp temp2 = w.getUpdated();
-        
+
         String aux = timestampToString(temp);
         String aux2 = timestampToString(temp2);
-        
+
         Document document = new Document()
                 .append("recordId", w.getRecordId())
                 .append("city", w.getCity())

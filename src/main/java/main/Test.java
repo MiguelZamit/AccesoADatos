@@ -425,51 +425,51 @@ public class Test {
         boolean exit = false;
 
         do {
-            // Obtener contadores de ambas bases de datos
+            
             int counterMongo = ConexionMongoDB.getMongoCounter(conMongo);
             int counterMySQL = WeatherDataDAO.getMySQLDataCounter(conMySQL);
 
-            // Determinar si las bases de datos están desincronizadas
+            
             synchronizeOption = (counterMongo != counterMySQL);
 
-            // Actualizar las opciones del menú dinámicamente
+            
             refreshUserOptionList(database);
 
             try {
-                // Mostrar información de ambas bases de datos
+                
                 showCounterOfDataBases(conMySQL, conMongo);
                 System.out.println("");
 
-                // Mostrar el menú dinámico
+                
                 System.out.println("Menu per a la base de dades de " + database + ": ");
                 for (String o : userMenuOptions) {
                     System.out.println(o);
                 }
 
-                // Leer la opción del usuario
+                
                 int opt = Integer.parseInt(TECLADO.nextLine());
 
-                // Validar la opción seleccionada
+                
                 if (opt < 1 || opt > userMenuOptions.size()) {
                     System.out.println("Deus de ficar una opció vàlida. Prova altra vegada.");
                     continue;
                 }
 
-                // Procesar la opción seleccionada
+                
                 switch (opt) {
-                    case 1: // Insertar elemento
+                    case 1: 
                         insert(database, conMySQL, conMongo);
                         break;
 
-                    case 2: // Listar elementos
+                    case 2: 
                         menuLlistatElements(database, conMySQL, conMongo);
                         break;
 
-                    case 3: // Borrar elementos
+                    case 3: 
                         menuBorrarElements(database, conMySQL, conMongo);
                         break;
 
-                    case 4: // Sincronizar bases de datos
+                    case 4: 
                         if (synchronizeOption) {
                             System.out.println("Sincronitzant bases de dades...");
                             try {
@@ -477,7 +477,7 @@ public class Test {
                             } catch (InterruptedException ie) {
                                 System.out.println("Error -> " + ie.getMessage());
                             }
-                            // Sincronizar datos entre MongoDB y MySQL
+                            
                             
                             
                             // Agafe primer les dades de les dueps bases de dades
@@ -502,10 +502,7 @@ public class Test {
                                 
                                 WeatherDataDAO.insert(conMySQL, w);
                                 
-                            }
-                            // Creo que el MySQL funciona bien
-                            // WeatherDataDAO.syncDataFromMySQL(conMySQL, listFromMongo);
-                            
+                            }                           
                             
 
                             System.out.println("Sincronització completada!");
@@ -538,7 +535,7 @@ public class Test {
 
                                 try {
                                     System.out.print("latitude -> ");
-                                    latitude = Double.parseDouble(TECLADO.nextLine()); // SI SE INERTA UN LLETRA O RES SE ASIGNA A 0
+                                    latitude = Double.parseDouble(TECLADO.nextLine()); 
                                 } catch (NumberFormatException e) {
                                     latitude = 0;
                                 }
@@ -552,9 +549,9 @@ public class Test {
                                 }
 
                                 System.out.print("date -> ");
-                                String date = TECLADO.nextLine(); // Hay que pasarlo a TimeStamp
+                                String date = TECLADO.nextLine(); 
 
-                                Timestamp dateTimeStamp = stringToTimestamp(date); // COJER ESTE
+                                Timestamp dateTimeStamp = stringToTimestamp(date); 
 
                                 int temperatureCelcius;
                                 try {
@@ -1087,15 +1084,24 @@ public class Test {
             case 1:
 
                 System.out.println("Dime la ciutat que vols solicitar: ");
+                
+                if (DBName.equalsIgnoreCase("MySQL")){
+                    
+                    WeatherDataDAO.showCities(conMySQL);
+                    
+                }else{
+                    
+                    ConexionMongoDB.showCities(conMongo);
+                    
+                }
+                
                 String city = TECLADO.nextLine();
-
-                System.out.println("Dades de " + DBName);
                 if (DBName.equalsIgnoreCase("MySQL")) {
-
+                    System.out.println("Dades de MySQL");
                     WeatherDataDAO.showElementByCity(conMySQL, city);
 
                 } else {
-
+                    System.out.println("Dades de MongoDB");
                     ConexionMongoDB.showElementByCity(conMongo, city);
 
                 }
@@ -1105,6 +1111,17 @@ public class Test {
             case 2:
 
                 System.out.println("Introduiex les ciutats separades per , :");
+                
+                if (DBName.equalsIgnoreCase("MySQL")){
+                    
+                    WeatherDataDAO.showCities(conMySQL);
+                    
+                }else{
+                    
+                    ConexionMongoDB.showCities(conMongo);
+                    
+                }
+                
                 String ipt = TECLADO.nextLine();
 
                 String[] cities = ipt.split(",");
