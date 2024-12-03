@@ -5,10 +5,16 @@
 package datos;
 
 import domain.WeatherData;
+import java.io.File;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 /**
  *
@@ -358,6 +364,136 @@ public class WeatherDataDAO {
             System.out.println("Error -> " + sqle.getMessage());
         }
     }
+    
+    public static int averangeWeatherMySQL(String city){
+        
+        Connection c = ConexionMySQL.getConnection();
+            PreparedStatement st;
+            ResultSet rs;
+            String query = "select temperature_celsius from WeatherDataMZ06 where city like (?)";
+            
+            int aux = 0;
+            int averange = 0;
+            try{
+                
+                st = c.prepareStatement(query);
+                st.setString(1, city);
+                rs = st.executeQuery();
+                
+                while(rs.next()){
+                    aux++;
+                    averange+= rs.getInt("temperature_celsius");
+                    
+                }
+                
+                if (aux == 0){
+                    
+                    System.out.println("No se ha trobat cap registre de temperatura en MySQL");
+                    return 0;
+                    
+                }
+                
+                return averange / aux;
+                
+            }catch(Exception e){
+                
+                System.out.println(e.getMessage()+"Error weatherData mySQL");
+                return 0;
+                
+            }
+            
+            
+        
+    }
+    
+    
+    
+    // FUNCIO PER A IMPORTAR IMTEMS DE UN XML
+    public static void importFromXML(Connection connection) {
+    String xmlFilePath = "/home/miguel/NetBeansProjects/Practica_JDBC_Mes_Mongo/src/main/java/main/XMLWeatherDataMySQL.xml"; 
+    try {
+        
+        File xmlFile = new File(xmlFilePath);
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        org.w3c.dom.Document xmlDoc = builder.parse(xmlFile);
+
+        
+        xmlDoc.getDocumentElement().normalize();
+
+       
+        NodeList itemList = xmlDoc.getElementsByTagName("Item");
+
+        
+        String sql = "INSERT INTO WeatherDataMZ06 (city, country, latitude, longitude, date, "
+                   + "temperature_celsius, humidity_percent, precipitation_mm, wind_speed_kmh, "
+                   + "weather_condition, forecast, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        PreparedStatement preparedStatement = connection.prepareStatement(sql);
+
+        
+        for (int i = 0; i < itemList.getLength(); i++) {
+            Node itemNode = itemList.item(i);
+
+            if (itemNode.getNodeType() == Node.ELEMENT_NODE) {
+                Element itemElement = (Element) itemNode;
+
+               
+                String city = itemElement.getElementsByTagName("city").item(0).getTextContent();
+                String country = itemElement.getElementsByTagName("country").item(0).getTextContent();
+                double latitude = Double.parseDouble(itemElement.getElementsByTagName("latitude").item(0).getTextContent());
+                double longitude = Double.parseDouble(itemElement.getElementsByTagName("longitude").item(0).getTextContent());
+                String date = itemElement.getElementsByTagName("date").item(0).getTextContent();
+                int temperatureCelsius = Integer.parseInt(itemElement.getElementsByTagName("temperature_celsius").item(0).getTextContent());
+                int humidityPercent = Integer.parseInt(itemElement.getElementsByTagName("humidity_percent").item(0).getTextContent());
+                double precipitationMm = Double.parseDouble(itemElement.getElementsByTagName("precipitation_mm").item(0).getTextContent());
+                int windSpeedKmh = Integer.parseInt(itemElement.getElementsByTagName("wind_speed_kmh").item(0).getTextContent());
+                String weatherCondition = itemElement.getElementsByTagName("weather_condition").item(0).getTextContent();
+                String forecast = itemElement.getElementsByTagName("forecast").item(0).getTextContent();
+                String updated = itemElement.getElementsByTagName("updated").item(0).getTextContent();
+
+                preparedStatement.setString(1, city);
+                preparedStatement.setString(2, country);
+                preparedStatement.setDouble(3, latitude);
+                preparedStatement.setDouble(4, longitude);
+                preparedStatement.setString(5, date);
+                preparedStatement.setInt(6, temperatureCelsius);
+                preparedStatement.setInt(7, humidityPercent);
+                preparedStatement.setDouble(8, precipitationMm);
+                preparedStatement.setInt(9, windSpeedKmh);
+                preparedStatement.setString(10, weatherCondition);
+                preparedStatement.setString(11, forecast);
+                preparedStatement.setString(12, updated);
+
+                
+                preparedStatement.executeUpdate();
+
+               
+                System.out.println("Dades insertades del XML: ");
+                System.out.println("City: " + city);
+                System.out.println("Country: " + country);
+                System.out.println("Latitude: " + latitude);
+                System.out.println("Longitude: " + longitude);
+                System.out.println("Date: " + date);
+                System.out.println("Temperature (Celsius): " + temperatureCelsius);
+                System.out.println("Humidity (%): " + humidityPercent);
+                System.out.println("Precipitation (mm): " + precipitationMm);
+                System.out.println("Wind Speed (km/h): " + windSpeedKmh);
+                System.out.println("Weather Condition: " + weatherCondition);
+                System.out.println("Forecast: " + forecast);
+                System.out.println("Updated: " + updated);
+                
+            }
+        }
+
+      
+
+    } catch (Exception e) {
+        System.out.println("Error al importar datos desde XML: " + e.getMessage());
+        e.printStackTrace();
+    }
+}
+
+    
 
     public static void deleteElementsByCities(Connection c, String[] city) {
 

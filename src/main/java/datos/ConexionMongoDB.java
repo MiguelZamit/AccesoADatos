@@ -14,7 +14,9 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.result.DeleteResult;
 import domain.WeatherData;
+import java.io.File;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -22,9 +24,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Scanner;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 /**
  *
@@ -344,70 +351,83 @@ public class ConexionMongoDB {
         }
         return timestamp;
     }
+    
+    
+    public static void importFromXML() {
+        
+        String xmlFilePath = "/home/miguel/NetBeansProjects/Practica_JDBC_Mes_Mongo/src/main/java/main/XMLWeatherDataMySQL.xml";
+      
+        try {
+            MongoClient mongoClient = connectToMongoClient();
+            
+            MongoDatabase database = mongoClient.getDatabase("WeatherData");
+            MongoCollection<Document> collection = database.getCollection("WeatherDataMZ06");
 
-//    public static List<WeatherData> getMongoDBData(MongoClient conn) {
-//
-//        MongoDatabase database = selectDBMongo(conn, "WeatherData");
-//        MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
-//
-//        List<WeatherData> weatherDataList = new ArrayList<>();
-//
-//        try {
-//
-//            MongoCursor<Document> cursor = col.find().iterator();
-//
-//            while (cursor.hasNext()) {
-//                Document document = cursor.next();
-//                Date date;
-//
-//                String dateString;
-//                try {
-//                    date = document.getDate("date");
-//                } catch (Exception e) {
-//                    dateString = document.getString("date");
-//                }
-//
-//                Date updated = document.getDate("updated");
-//
-//                Timestamp dateToTimeStamp;
-//                if (date != null) {
-//                    dateToTimeStamp = new Timestamp(date.getTime());
-//                } else {
-//                    dateToTimeStamp = null;
-//                }
-//
-//                Timestamp updatedToTimeStamp;
-//                if (updated != null) {
-//                    updatedToTimeStamp = new Timestamp(updated.getTime());
-//                } else {
-//                    updatedToTimeStamp = null;
-//                }
-//
-//                WeatherData weatherData = new WeatherData(
-//                        document.getInteger("record_id"),
-//                        document.getString("city"),
-//                        document.getString("country"),
-//                        document.getDouble("latitude"),
-//                        document.getDouble("longitude"),
-//                        dateToTimeStamp, // Convertido a Timestamp
-//                        document.getInteger("temperature_celsius"),
-//                        document.getInteger("humidity_percent"),
-//                        document.getDouble("precipitation_mm"),
-//                        document.getInteger("wind_speed_kmh"),
-//                        document.getString("weather_condition"),
-//                        document.getString("forecast"),
-//                        updatedToTimeStamp // Convertido a Timestamp
-//                );
-//
-//                weatherDataList.add(weatherData);
-//            }
-//        } catch (Exception e) {
-//            System.out.println("Error al obtener datos: " + e.getMessage());
-//            e.printStackTrace();
-//        }
-//
-//        return weatherDataList;
-//    }
+  
+            File xmlFile = new File(xmlFilePath);
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            org.w3c.dom.Document xmlDoc = builder.parse(xmlFile);
+
+        
+            xmlDoc.getDocumentElement().normalize();
+
+  
+            NodeList itemList = xmlDoc.getElementsByTagName("Item");
+
+
+            for (int i = 0; i < itemList.getLength(); i++) {
+                Node itemNode = itemList.item(i);
+
+                if (itemNode.getNodeType() == Node.ELEMENT_NODE) {
+                    Element itemElement = (Element) itemNode;
+
+                    
+                    Document doc = new Document()
+                            .append("record_id", getLastId())
+                            .append("city", itemElement.getElementsByTagName("city").item(0).getTextContent())
+                            .append("country", itemElement.getElementsByTagName("country").item(0).getTextContent())
+                            .append("latitude", Double.parseDouble(itemElement.getElementsByTagName("latitude").item(0).getTextContent()))
+                            .append("longitude", Double.parseDouble(itemElement.getElementsByTagName("longitude").item(0).getTextContent()))
+                            .append("date", itemElement.getElementsByTagName("date").item(0).getTextContent())
+                            .append("temperature_celsius", Integer.parseInt(itemElement.getElementsByTagName("temperature_celsius").item(0).getTextContent()))
+                            .append("humidity_percent", Integer.parseInt(itemElement.getElementsByTagName("humidity_percent").item(0).getTextContent()))
+                            .append("precipitation_mm", Double.parseDouble(itemElement.getElementsByTagName("precipitation_mm").item(0).getTextContent()))
+                            .append("wind_speed_kmh", Integer.parseInt(itemElement.getElementsByTagName("wind_speed_kmh").item(0).getTextContent()))
+                            .append("weather_condition", itemElement.getElementsByTagName("weather_condition").item(0).getTextContent())
+                            .append("forecast", itemElement.getElementsByTagName("forecast").item(0).getTextContent())
+                            .append("updated", itemElement.getElementsByTagName("updated").item(0).getTextContent());
+
+                    
+                    collection.insertOne(doc);
+
+                    // Mostrar los datos insertados
+                    System.out.println("Dades insertades: :");
+                    System.out.println("record_id -> " + doc.getInteger("record_id"));
+                    System.out.println("city -> " + doc.getString("city"));
+                    System.out.println("country -> " + doc.getString("country"));
+                    System.out.println("latitude -> " + doc.getDouble("latitude"));
+                    System.out.println("longitude -> " + doc.getDouble("longitude"));
+                    System.out.println("date -> " + doc.getString("date"));
+                    System.out.println("temperature_celsius -> " + doc.getInteger("temperature_celsius"));
+                    System.out.println("humidity_percent -> " + doc.getInteger("humidity_percent"));
+                    System.out.println("precipitation_mm -> " + doc.getDouble("precipitation_mm"));
+                    System.out.println("wind_speed_kmh -> " + doc.getInteger("wind_speed_kmh"));
+                    System.out.println("weather_condition -> " + doc.getString("weather_condition"));
+                    System.out.println("forecast -> " + doc.getString("forecast"));
+                    System.out.println("updated -> " + doc.getString("updated"));
+                    System.out.println("-------------------------");
+                }
+            }
+
+            
+        } catch (Exception e) {
+            System.out.println("Error al importar datos desde XML: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+   
     // Aquest metodes es la valid para el driver de mongo
     public static void showElementsByCities(List<String> cities) {
 
@@ -495,23 +515,23 @@ public class ConexionMongoDB {
             // Insertar el documento en la colección
             col.insertOne(doc);
 
-            System.out.println("Documento insertado correctamente en MongoDB.");
+            
         } catch (Exception e) {
-            System.out.println("Error al insertar el documento en MongoDB: " + e.getMessage());
+            System.out.println(e.getMessage());
         }
 
     }
 
-    // Tinc que borrar el altre
+    
     public static String timestampToString(Timestamp timestamp) {
         if (timestamp == null) {
-            return null; // Retorna null si el timestamp es nulo
+            return null; 
         }
 
-        // Define el formato de fecha que deseas
+        
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
 
-        // Convierte el Timestamp a String
+        
         return sdf.format(timestamp);
     }
 
@@ -614,17 +634,21 @@ public class ConexionMongoDB {
 
     public static void deleteElementByCity(MongoClient mongo, String city) {
 
-        MongoDatabase database = selectDBMongo(mongo, "WeatherData");
-        MongoCollection col = database.getCollection("WeatherDataMZ06");
+    MongoDatabase database = selectDBMongo(mongo, "WeatherData");
+    MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
 
-        BasicDBObject filter = new BasicDBObject();
-        List<BasicDBObject> obj = new ArrayList<>();
+    
+    Document filter = new Document("city", city);
 
-        obj.add(new BasicDBObject("city", city));
+   
+    DeleteResult result = col.deleteOne(filter); // Agafe aço per saber si algo se ha borrat o no
 
-        col.deleteOne(filter);
+    
+    if (result.getDeletedCount() == 0) {
+        System.out.println("No se ah trobat cap : " + city);
+    } 
+}
 
-    }
 
     public static void deleteElementsByCities(MongoClient mongo, List<String> cities) {
 

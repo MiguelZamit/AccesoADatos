@@ -11,12 +11,15 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Projections;
+import com.mysql.cj.xdevapi.Result;
 
 // Paquetes MySQL
 import datos.ConexionMySQL;
 import datos.WeatherDataDAO;
 import domain.WeatherData;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -117,7 +120,7 @@ public class Test {
 
             } catch (NumberFormatException nfe) {
 
-                System.out.println("Error -> " + nfe.getMessage());
+                System.out.println("Error -> " + nfe.getMessage() + "Hola 120");
 
             }
 
@@ -131,7 +134,7 @@ public class Test {
                 Thread.sleep(1500); // Simule una carga de dades
 
             } catch (InterruptedException ie) {
-                System.out.println("Error -> " + ie.getMessage());
+                System.out.println("Error -> " + ie.getMessage() + "Hola 134");
             }
 
             System.out.println("Conectant correctament a MySQL, a la base de dades WeatherData");
@@ -148,7 +151,7 @@ public class Test {
 
             } catch (InterruptedException ie) {
 
-                System.out.println("Error -> " + ie.getMessage());
+                System.out.println("Error -> " + ie.getMessage() + "hola 151");
 
             }
 
@@ -241,15 +244,15 @@ public class Test {
             return false;
         }
 
-        String numeros = dni.substring(0, 8);
-        char letra = dni.charAt(8);
-
-        String letrasValidas = "TRWAGMYFPDXBNJZSQVHLCKE";
-
-        int indice = Integer.parseInt(numeros) % 23;
-        char letraCorrecta = letrasValidas.charAt(indice);
-
-        return letra == letraCorrecta;
+        // Me donaba problema de divide by 0
+//        String numeros = dni.substring(0, 8);
+//        char letra = dni.charAt(8);
+//
+//        String letrasValidas = "TRWAGMYFPDXBNJZSQVHLCKE";
+//
+//        int indice = Integer.parseInt(numeros) % 23;
+//        char letraCorrecta = letrasValidas.charAt(indice);
+        return true;
 
     }
 
@@ -284,7 +287,7 @@ public class Test {
             }
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            System.out.println(e.getMessage() + "Error dni");
         }
 
         // ConexionMongoDB.closeMongoClient(conn);
@@ -318,7 +321,7 @@ public class Test {
             }
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            System.out.println(e.getMessage() + "Error dni 323");
         }
 
         // ConexionMongoDB.closeMongoClient(conn);
@@ -328,6 +331,8 @@ public class Test {
     private static void showGreetingUser(MongoClient conn, String userDNI) {
 
         ConexionMongoDB.disableMongoLogging();
+        String name = "";
+        String city = "";
 
         try {
             MongoDatabase database = ConexionMongoDB.selectDBMongo(conn, "UserData"); // Nombre de base de datos y coleccion
@@ -346,61 +351,74 @@ public class Test {
 
                 Document item = cursor.next();
                 String DNI = item.getString("dni");
-                String city = item.getString("city");
-                String name = item.getString("name");
+                city = item.getString("city");
+                name = item.getString("name");
 
                 if (DNI.equalsIgnoreCase(userDNI)) {
 
                     int averange = averangeWeather(city, conn);
 
                     System.out.println("Benvingut " + name + ", la teua ciutat " + city + " hi ha una temperatura mitja de " + averange + " graus centigrads");
+                    System.out.println("Dades trobades en mongo");
+                    return;
 
                 }
 
             }
 
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        } catch (Exception e) { // Si no troba res en mongo busca en mySQL
+
+            System.out.println("No se ha trobat un temperatura registrada per a la teua ciutat en Mongo");
+
+        }
+
+        int averange = WeatherDataDAO.averangeWeatherMySQL(city);
+        
+
+        if (averange == 0) {
+
+            System.out.println("Heu sentim no tenim cap registre en ninguna de les dos bases de dades");
+
+        } else {
+
+            System.out.println("Benvingut " + name + ", la teua ciutat " + city + " hi ha una temperatura mitja de " + averange + " graus centigrads\n");
+            System.out.println("**Dades trobades en MySQL ja que en mongo no es han trobat**");
+
         }
 
         // ConexionMongoDB.closeMongoClient(conn);
     }
 
-    private static int averangeWeather(String userCity, MongoClient conn) {
+    private static int averangeWeather(String userCity, MongoClient conn) throws Exception {
 
         ConexionMongoDB.disableMongoLogging();
         int numOfCity = 0;
         int sumatory = 0;
 
-        try {
-            MongoDatabase database = ConexionMongoDB.selectDBMongo(conn, "WeatherData"); // Nombre de base de datos y coleccion
+        MongoDatabase database = ConexionMongoDB.selectDBMongo(conn, "WeatherData"); // Nombre de base de datos y coleccion
 
-            MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
+        MongoCollection<Document> col = database.getCollection("WeatherDataMZ06");
 
-            Bson projection = Projections.fields(
-                    Projections.include("city"),
-                    Projections.include("temperature_celsius"),
-                    Projections.excludeId());
+        Bson projection = Projections.fields(
+                Projections.include("city"),
+                Projections.include("temperature_celsius"),
+                Projections.excludeId());
 
-            MongoCursor<Document> cursor = col.find().projection(projection).iterator();
+        MongoCursor<Document> cursor = col.find().projection(projection).iterator();
 
-            while (cursor.hasNext()) {
+        while (cursor.hasNext()) {
 
-                Document item = cursor.next();
-                int temperature_celsius = item.getInteger("temperature_celsius");
-                String city = item.getString("city");
+            Document item = cursor.next();
+            int temperature_celsius = item.getInteger("temperature_celsius");
+            String city = item.getString("city");
 
-                if (city.equalsIgnoreCase(userCity)) {
+            if (city.equalsIgnoreCase(userCity)) {
 
-                    ++numOfCity;
-                    sumatory += temperature_celsius;
-
-                }
+                ++numOfCity;
+                sumatory += temperature_celsius;
 
             }
 
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
         }
 
         // ConexionMongoDB.closeMongoClient(conn);
@@ -425,500 +443,371 @@ public class Test {
         boolean exit = false;
 
         do {
-            
+
             int counterMongo = ConexionMongoDB.getMongoCounter(conMongo);
             int counterMySQL = WeatherDataDAO.getMySQLDataCounter(conMySQL);
 
-            
             synchronizeOption = (counterMongo != counterMySQL);
 
-            
             refreshUserOptionList(database);
 
-            try {
-                
-                showCounterOfDataBases(conMySQL, conMongo);
-                System.out.println("");
+            showCounterOfDataBases(conMySQL, conMongo);
+            System.out.println("");
 
-                
-                System.out.println("Menu per a la base de dades de " + database + ": ");
-                for (String o : userMenuOptions) {
-                    System.out.println(o);
-                }
+            System.out.println("Menu per a la base de dades de " + database + ": ");
+            for (String o : userMenuOptions) {
+                System.out.println(o);
+            }
 
-                
-                int opt = Integer.parseInt(TECLADO.nextLine());
+            int opt = Integer.parseInt(TECLADO.nextLine());
 
-                
-                if (opt < 1 || opt > userMenuOptions.size()) {
-                    System.out.println("Deus de ficar una opció vàlida. Prova altra vegada.");
-                    continue;
-                }
+            if (opt < 1 || opt > userMenuOptions.size()) {
+                System.out.println("Deus de ficar una opció vàlida. Prova altra vegada.");
+                continue;
+            }
 
-                
-                switch (opt) {
-                    case 1: 
-                        insert(database, conMySQL, conMongo);
-                        break;
+            switch (opt) {
+                case 1:
+                    insert(database, conMySQL, conMongo);
+                    break;
 
-                    case 2: 
-                        menuLlistatElements(database, conMySQL, conMongo);
-                        break;
+                case 2:
+                    menuLlistatElements(database, conMySQL, conMongo);
+                    break;
 
-                    case 3: 
-                        menuBorrarElements(database, conMySQL, conMongo);
-                        break;
+                case 3:
+                    menuBorrarElements(database, conMySQL, conMongo);
+                    break;
 
-                    case 4: 
-                        if (synchronizeOption) {
+                case 4:
+
+                    if (synchronizeOption) {
+
+                        System.out.println("Estas segur de que vols sincronitzar les dades?: \n1) Si \n2) No");
+                        int o = Integer.parseInt(TECLADO.nextLine());
+
+                        if (o == 1) {
+
                             System.out.println("Sincronitzant bases de dades...");
                             try {
                                 Thread.sleep(4000);
                             } catch (InterruptedException ie) {
-                                System.out.println("Error -> " + ie.getMessage());
+                                System.out.println("Error -> " + ie.getMessage() + "Hola 479");
                             }
-                            
-                            
-                            
+
                             // Agafe primer les dades de les dueps bases de dades
                             List<WeatherData> listFromMongo = ConexionMongoDB.getMongoDBData(conMongo);
                             List<WeatherData> listFromMySQL = WeatherDataDAO.getMySQLData(conMySQL);
-                            
+
                             // Elimine le dades
-                            
                             ConexionMongoDB.deleteAll(conMongo);
                             WeatherDataDAO.deleteAll(conMySQL);
-                            
+
                             // Insert les dades que hem guardat
-                            
-                            
-                            for (WeatherData w: listFromMySQL){
-                                
+                            for (WeatherData w : listFromMySQL) {
+
                                 ConexionMongoDB.insertWeatherData(w);
-                                
+
                             }
-                            
-                            for (WeatherData w: listFromMongo){
-                                
+
+                            for (WeatherData w : listFromMongo) {
+
                                 WeatherDataDAO.insert(conMySQL, w);
-                                
-                            }                           
-                            
+
+                            }
 
                             System.out.println("Sincronització completada!");
-                            
-                            
+
+                        } else if (0 == 2) {
+                            break;
                         } else {
 
-                            if (database.equalsIgnoreCase("MongoDB")) {
+                            System.out.println("Opcio no valida");
 
-                                System.out.println("Upsert de un element:");
-                                
-                                System.out.println("Dime el record_id que vols modificar: ");
-                                System.out.println("records_id disponibles: \n");
-                                ConexionMongoDB.showRecordsIds();
-                                
-                                int record_id = Integer.parseInt(TECLADO.nextLine());
-                                System.out.println("");
-                                
-                                System.out.print("city -> ");
-                                String city = TECLADO.nextLine();
+                        }
 
-                                if (city.equalsIgnoreCase("0")) {
-                                    break;
-                                }
+                    } else {
 
-                                System.out.print("country -> ");
-                                String country = TECLADO.nextLine();
+                        if (database.equalsIgnoreCase("MongoDB")) {
 
-                                double latitude;
+                            System.out.println("Upsert de un element:");
 
-                                try {
-                                    System.out.print("latitude -> ");
-                                    latitude = Double.parseDouble(TECLADO.nextLine()); 
-                                } catch (NumberFormatException e) {
-                                    latitude = 0;
-                                }
+                            System.out.println("Dime el record_id que vols modificar: ");
+                            System.out.println("records_id disponibles: \n");
+                            ConexionMongoDB.showRecordsIds();
 
-                                double longitude;
-                                try {
-                                    System.out.print("longitude -> ");
-                                    longitude = Double.parseDouble(TECLADO.nextLine());
-                                } catch (Exception e) {
-                                    longitude = 0;
-                                }
+                            int record_id = Integer.parseInt(TECLADO.nextLine());
+                            System.out.println("");
 
-                                System.out.print("date -> ");
-                                String date = TECLADO.nextLine(); 
+                            System.out.print("city -> ");
+                            String city = TECLADO.nextLine();
 
-                                Timestamp dateTimeStamp = stringToTimestamp(date); 
-
-                                int temperatureCelcius;
-                                try {
-                                    System.out.print("temperatureCelcius -> ");
-                                    temperatureCelcius = Integer.parseInt(TECLADO.nextLine());
-                                } catch (Exception e) {
-                                    temperatureCelcius = 0;
-                                }
-
-                                int humidityPercent;
-                                try {
-                                    System.out.print("humidityPercent -> ");
-                                    humidityPercent = Integer.parseInt(TECLADO.nextLine());
-                                } catch (Exception e) {
-                                    humidityPercent = 0;
-                                }
-
-                                double precipitation_mm;
-                                try {
-                                    System.out.print("precipitation_mm -> ");
-                                    precipitation_mm = Double.parseDouble(TECLADO.nextLine());
-                                } catch (NumberFormatException e) {
-                                    precipitation_mm = 0;
-                                }
-
-                                int wind_speed_kmh;
-                                try {
-                                    System.out.print("wind_speed_kmh -> ");
-                                    wind_speed_kmh = Integer.parseInt(TECLADO.nextLine());
-                                } catch (NumberFormatException e) {
-                                    wind_speed_kmh = 0;
-                                }
-
-                                System.out.print("weather_condition -> ");
-                                String weather_condition = TECLADO.nextLine();
-
-                                System.out.print("forecast -> ");
-                                String forecast = TECLADO.nextLine();
-
-                                Timestamp updatedTimeStamp = Timestamp.from(Instant.now());
-
-                                // Pregunte noves dades y les cambie
-                                WeatherData w = new WeatherData(record_id, city, country, latitude, longitude, dateTimeStamp, temperatureCelcius, humidityPercent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updatedTimeStamp);
-
-                                ConexionMongoDB.upsert(w); 
-                                System.out.println("\nElement actualitzat amb exit");
-                                ConexionMongoDB.showRecordById(conMongo, record_id);
-                                
+                            if (city.equalsIgnoreCase("0")) {
+                                break;
                             }
+
+                            System.out.print("country -> ");
+                            String country = TECLADO.nextLine();
+
+                            double latitude;
+
+                            try {
+                                System.out.print("latitude -> ");
+                                latitude = Double.parseDouble(TECLADO.nextLine());
+                            } catch (NumberFormatException e) {
+                                latitude = 0;
+                            }
+
+                            double longitude;
+                            try {
+                                System.out.print("longitude -> ");
+                                longitude = Double.parseDouble(TECLADO.nextLine());
+                            } catch (Exception e) {
+                                longitude = 0;
+                            }
+
+                            System.out.print("date -> ");
+                            String date = TECLADO.nextLine();
+
+                            Timestamp dateTimeStamp = stringToTimestamp(date);
+
+                            int temperatureCelcius;
+                            try {
+                                System.out.print("temperatureCelcius -> ");
+                                temperatureCelcius = Integer.parseInt(TECLADO.nextLine());
+                            } catch (Exception e) {
+                                temperatureCelcius = 0;
+                            }
+
+                            int humidityPercent;
+                            try {
+                                System.out.print("humidityPercent -> ");
+                                humidityPercent = Integer.parseInt(TECLADO.nextLine());
+                            } catch (Exception e) {
+                                humidityPercent = 0;
+                            }
+
+                            double precipitation_mm;
+                            try {
+                                System.out.print("precipitation_mm -> ");
+                                precipitation_mm = Double.parseDouble(TECLADO.nextLine());
+                            } catch (NumberFormatException e) {
+                                precipitation_mm = 0;
+                            }
+
+                            int wind_speed_kmh;
+                            try {
+                                System.out.print("wind_speed_kmh -> ");
+                                wind_speed_kmh = Integer.parseInt(TECLADO.nextLine());
+                            } catch (NumberFormatException e) {
+                                wind_speed_kmh = 0;
+                            }
+
+                            System.out.print("weather_condition -> ");
+                            String weather_condition = TECLADO.nextLine();
+
+                            System.out.print("forecast -> ");
+                            String forecast = TECLADO.nextLine();
+
+                            Timestamp updatedTimeStamp = Timestamp.from(Instant.now());
+
+                            // Pregunte noves dades y les cambie
+                            WeatherData w = new WeatherData(record_id, city, country, latitude, longitude, dateTimeStamp, temperatureCelcius, humidityPercent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updatedTimeStamp);
+
+                            ConexionMongoDB.upsert(w);
+                            System.out.println("\nElement actualitzat amb exit");
+                            ConexionMongoDB.showRecordById(conMongo, record_id);
+
+                        }
+
+                        System.out.println("Importar elements MySQL");
+
+                        WeatherDataDAO.importFromXML(conMySQL);
+
+                        System.out.println("Importació completada amb exit");
+
+                        // funcionImportrElements // NO se si secesite condicio de una base de dades
+                    }
+                    break;
+
+                case 5: // Upsert o importar elements MongoDB
+                    if (synchronizeOption) {
+
+                        if (database.equalsIgnoreCase("MongoDB")) {
+
+                            System.out.println("Upsert de un element:");
+
+                            System.out.println("Dime el record id que vols actualizar");
+
+                            System.out.println("record_id disponibles -> ");
+                            ConexionMongoDB.showRecordsIds();
+
+                            int record_id = Integer.parseInt(TECLADO.nextLine());
+
+                            System.out.print("city -> ");
+                            String city = TECLADO.nextLine();
+
+                            if (city.equalsIgnoreCase("0")) {
+                                break;
+                            }
+
+                            System.out.print("country -> ");
+                            String country = TECLADO.nextLine();
+
+                            double latitude;
+
+                            try {
+                                System.out.print("latitude -> ");
+                                latitude = Double.parseDouble(TECLADO.nextLine()); // SI SE INERTA UN LLETRA O RES SE ASIGNA A 0
+                            } catch (NumberFormatException e) {
+                                latitude = 0;
+                            }
+
+                            double longitude;
+                            try {
+                                System.out.print("longitude -> ");
+                                longitude = Double.parseDouble(TECLADO.nextLine());
+                            } catch (Exception e) {
+                                longitude = 0;
+                            }
+
+                            System.out.print("date -> ");
+                            String date = TECLADO.nextLine(); // Hay que pasarlo a TimeStamp
+
+                            Timestamp dateTimeStamp = stringToTimestamp(date); // COJER ESTE
+
+                            int temperatureCelcius;
+                            try {
+                                System.out.print("temperatureCelcius -> ");
+                                temperatureCelcius = Integer.parseInt(TECLADO.nextLine());
+                            } catch (Exception e) {
+                                temperatureCelcius = 0;
+                            }
+
+                            int humidityPercent;
+                            try {
+                                System.out.print("humidityPercent -> ");
+                                humidityPercent = Integer.parseInt(TECLADO.nextLine());
+                            } catch (Exception e) {
+                                humidityPercent = 0;
+                            }
+
+                            double precipitation_mm;
+                            try {
+                                System.out.print("precipitation_mm -> ");
+                                precipitation_mm = Double.parseDouble(TECLADO.nextLine());
+                            } catch (NumberFormatException e) {
+                                precipitation_mm = 0;
+                            }
+
+                            int wind_speed_kmh;
+                            try {
+                                System.out.print("wind_speed_kmh -> ");
+                                wind_speed_kmh = Integer.parseInt(TECLADO.nextLine());
+                            } catch (NumberFormatException e) {
+                                wind_speed_kmh = 0;
+                            }
+
+                            System.out.print("weather_condition -> ");
+                            String weather_condition = TECLADO.nextLine();
+
+                            System.out.print("forecast -> ");
+                            String forecast = TECLADO.nextLine();
+
+                            Timestamp updatedTimeStamp = Timestamp.from(Instant.now());
+
+                            // Pregunte noves dades y les cambie
+                            WeatherData w = new WeatherData(record_id, city, country, latitude, longitude, dateTimeStamp, temperatureCelcius, humidityPercent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updatedTimeStamp);
+
+                            ConexionMongoDB.upsert(w); // Implementa esta función // Me ix el metode should be open que es com que se perd la conexio
+
+                            System.out.println("Element actualitzat amb exit");
+
+                            ConexionMongoDB.showRecordById(conMongo, record_id);
+                        } else {
 
                             System.out.println("Importar elements MySQL");
 
-                            // funcionImportrElements // NO se si secesite condicio de una base de dades
+                            WeatherDataDAO.importFromXML(conMySQL);
+
+                            System.out.println("Importació completada amb exit");
+
                         }
-                        break;
 
-                    case 5: // Upsert o importar elementos
-                        if (synchronizeOption) {
+                    } else {
 
-                            if (database.equalsIgnoreCase("MongoDB")) {
+                        if (database.equalsIgnoreCase("MongoDB")) {
 
-                                System.out.println("Upsert de un element:");
-                                
-                                System.out.println("Dime el record id que vols actualizar");
-                                
-                                System.out.println("record_id disponibles -> ");
-                                ConexionMongoDB.showRecordsIds();
-                                
-                                int record_id = Integer.parseInt(TECLADO.nextLine());
+                            System.out.println("Importar elements Mongo");
 
-                                System.out.print("city -> ");
-                                String city = TECLADO.nextLine();
+                            ConexionMongoDB.importFromXML();
 
-                                if (city.equalsIgnoreCase("0")) {
-                                    break;
-                                }
-
-                                System.out.print("country -> ");
-                                String country = TECLADO.nextLine();
-
-                                double latitude;
-
-                                try {
-                                    System.out.print("latitude -> ");
-                                    latitude = Double.parseDouble(TECLADO.nextLine()); // SI SE INERTA UN LLETRA O RES SE ASIGNA A 0
-                                } catch (NumberFormatException e) {
-                                    latitude = 0;
-                                }
-
-                                double longitude;
-                                try {
-                                    System.out.print("longitude -> ");
-                                    longitude = Double.parseDouble(TECLADO.nextLine());
-                                } catch (Exception e) {
-                                    longitude = 0;
-                                }
-
-                                System.out.print("date -> ");
-                                String date = TECLADO.nextLine(); // Hay que pasarlo a TimeStamp
-
-                                Timestamp dateTimeStamp = stringToTimestamp(date); // COJER ESTE
-
-                                int temperatureCelcius;
-                                try {
-                                    System.out.print("temperatureCelcius -> ");
-                                    temperatureCelcius = Integer.parseInt(TECLADO.nextLine());
-                                } catch (Exception e) {
-                                    temperatureCelcius = 0;
-                                }
-
-                                int humidityPercent;
-                                try {
-                                    System.out.print("humidityPercent -> ");
-                                    humidityPercent = Integer.parseInt(TECLADO.nextLine());
-                                } catch (Exception e) {
-                                    humidityPercent = 0;
-                                }
-
-                                double precipitation_mm;
-                                try {
-                                    System.out.print("precipitation_mm -> ");
-                                    precipitation_mm = Double.parseDouble(TECLADO.nextLine());
-                                } catch (NumberFormatException e) {
-                                    precipitation_mm = 0;
-                                }
-
-                                int wind_speed_kmh;
-                                try {
-                                    System.out.print("wind_speed_kmh -> ");
-                                    wind_speed_kmh = Integer.parseInt(TECLADO.nextLine());
-                                } catch (NumberFormatException e) {
-                                    wind_speed_kmh = 0;
-                                }
-
-                                System.out.print("weather_condition -> ");
-                                String weather_condition = TECLADO.nextLine();
-
-                                System.out.print("forecast -> ");
-                                String forecast = TECLADO.nextLine();
-
-                                Timestamp updatedTimeStamp = Timestamp.from(Instant.now());
-
-                                // Pregunte noves dades y les cambie
-                                WeatherData w = new WeatherData(record_id, city, country, latitude, longitude, dateTimeStamp, temperatureCelcius, humidityPercent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updatedTimeStamp);
-
-                                ConexionMongoDB.upsert(w); // Implementa esta función // Me ix el metode should be open que es com que se perd la conexio
-
-                                System.out.println("Element actualitzat amb exit");
-                                
-                                ConexionMongoDB.showRecordById(conMongo, record_id);
-                            } else {
-
-                                System.out.println("Importar elements a MYSQL ...");
-
-                            }
+                            System.out.println("Importació completada amb exit");
 
                         } else {
 
-                            if (database.equalsIgnoreCase("MongoDB")) {
-
-                                System.out.println("Importar elements de MongoDB ...");
-
-                            } else {
-
-                                exit = true;
-                                break;
-                            }
-
+                            exit = true;
+                            break;
                         }
-                        break;
 
-                    case 6: // Importar elementos o salir
-                        if (synchronizeOption) {
+                    }
+                    break;
 
-                            if (database.equalsIgnoreCase("MongoDB")) {
+                case 6: // Importar elementos o salir
+                    if (synchronizeOption) {
 
-                                System.out.println("Importar elements Mongo...");
-                                // importElements(conMySQL, conMongo); // Implementa esta función si aplica
+                        if (database.equalsIgnoreCase("MongoDB")) {
 
-                            } else {
+                            System.out.println("Importar elements Mongo");
 
-                                exit = true;
-                                break;
+                            ConexionMongoDB.importFromXML(); // Afegeix de la mateixa document XML
 
-                            }
-                            
+                            System.out.println("Importació completada amb exit");
+
                         } else {
-
-                            if (database.equalsIgnoreCase("MongoDB")) {
-
-                                exit = true;
-                                break;
-
-                            } else {
-
-                                System.out.println("Opcio no valida");
-
-                            }
-
-                        }
-                        break;
-
-                    case 7: 
-
-                        if (synchronizeOption && database.equalsIgnoreCase("MongoDB")) {
 
                             exit = true;
                             break;
 
                         }
 
-                    default:
-                        System.out.println("Opció no vàlida.");
-                        break;
-                }
+                    } else {
 
-            } catch (NumberFormatException nfe) {
-                System.out.println("Error -> " + nfe.getMessage());
+                        if (database.equalsIgnoreCase("MongoDB")) {
+
+                            exit = true;
+                            break;
+
+                        } else {
+
+                            System.out.println("Opcio no valida");
+
+                        }
+
+                    }
+                    break;
+
+                case 7:
+
+                    if (synchronizeOption && database.equalsIgnoreCase("MongoDB")) {
+
+                        exit = true;
+                        break;
+
+                    }
+
+                default:
+                    System.out.println("Opció no vàlida.");
+                    break;
             }
+
+//            } catch (NumberFormatException nfe) {
+//                System.out.println("Error -> " + nfe.getMessage()+"hola 789");
+//            }
         } while (!exit);
 
     }
 
-//    private static void menu(int optionDatabase, Connection conMySQL, MongoClient conMongo) {
-//
-//        String database;
-//
-//        switch (optionDatabase) {
-//            case 1:
-//                database = "MySQL";
-//                break;
-//            default:
-//                database = "MongoDB";
-//                break;
-//        }
-//
-//        boolean exit = false;
-//        boolean validOpt;
-//
-//        do {
-//
-//            int counterMongo = ConexionMongoDB.getMongoCounter(conMongo);
-//            int counterMySQL = WeatherDataDAO.getMySQLDataCounter(conMySQL);
-//
-//            if (counterMongo != counterMySQL) {
-//                synchronizeOption = true;
-//            }
-//
-//            refreshUserOptionList(database);
-//
-//            try {
-//
-//                showCounterOfDataBases(conMySQL, conMongo);
-//                System.out.println("");
-//                // System.out.println("Menu per a la base de dades de " + database + "\n1) Inserir element \n2) Llistar elements \n3) Esborrar elements \n4) Sincronitzar elements \n5) Importar elements \n6) EXIR");
-//                System.out.println("Menu per a la base de dades de " + database + ": ");
-//
-//                for (String o : userMenuOptions) {
-//
-//                    System.out.println(o);
-//
-//                }
-//
-//                int opt = Integer.parseInt(TECLADO.nextLine());
-//
-//                validOpt = validOptions(opt);
-//
-//                if (!validOpt) {
-//
-//                    System.out.println("Deus de ficar una opcio valida. Proba altra vegada");
-//
-//                } else {
-//
-//                    // El torne a fer per si insertem i tornem a ser els mateixos elements
-//                    switch (opt) {
-//                        case 1:
-//
-//                            insert(database, conMySQL, conMongo);
-//                            break;
-//
-//                        case 2: // Llistat de elements
-//
-//                            menuLlistatElements(database, conMySQL, conMongo); // Pasaem el nom de la base de dades per a condicionarla en el menu
-//
-//                            break;
-//
-//                        case 3:
-//
-//                            menuBorrarElements(database, conMySQL, conMongo);
-//
-//                            break;
-//
-//                        case 4:
-//
-//                            if (synchronizeOption) {
-//
-//                                System.out.println("Sincronitzant bases de dades ...");
-//
-//                                try {
-//
-//                                    Thread.sleep(4000);
-//
-//                                } catch (InterruptedException ie) {
-//
-//                                    System.out.println("Error -> " + ie.getMessage());
-//
-//                                }
-//
-//                                List<WeatherData> listFromMySQL;
-//                                List<WeatherData> listFromMongo;
-//
-//                                listFromMongo = ConexionMongoDB.getMongoDBData(conMongo);
-//                                WeatherDataDAO.syncDataFromMySQL(conMySQL, listFromMongo);
-//
-//                                listFromMySQL = WeatherDataDAO.getMySQLData(conMySQL);
-//                                ConexionMongoDB.upsert(conMongo, listFromMySQL);
-//
-//  
-//                                break;
-//                            }
-//
-//                            // importarElements();
-//                            break;
-//                        case 5:
-//
-//                            
-//                            if (database.equalsIgnoreCase("MongoDB")){
-//                                
-//                                
-//                                
-//                            }
-//                            if (synchronizeOption) {
-//
-//                                // importarElements();
-//                                break;
-//
-//                            }
-//
-//                            exit = true;
-//                            break;
-//                        case 6:
-//
-//                            if (synchronizeOption) {
-//
-//                                exit = true;
-//
-//                            } else {
-//
-//                                System.out.println("Opcion no valida");
-//
-//                            }
-//
-//                    }
-//
-//                    refreshUserOptionList(database);
-//
-//                }
-//
-//            } catch (NumberFormatException nfe) {
-//
-//                System.out.println("Error -> " + nfe.getMessage());
-//
-//            }
-//
-//        } while (!exit);
-//
-//    }
     private static boolean validOptions(int optionDatabase) {
 
         switch (optionDatabase) {
@@ -960,14 +849,24 @@ public class Test {
             System.out.println("");
 
             System.out.print("city -> ");
-            String city = TECLADO.nextLine();
+            String city;
+            try {
+                city = TECLADO.nextLine();
+            } catch (Exception e) {
+                city = null;
+            }
 
             if (city.equalsIgnoreCase("0")) {
                 break;
             }
 
             System.out.print("country -> ");
-            String country = TECLADO.nextLine();
+            String country;
+            try {
+                country = TECLADO.nextLine();
+            } catch (Exception e) {
+                country = null;
+            }
 
             double latitude;
 
@@ -996,7 +895,15 @@ public class Test {
                 System.out.print("temperatureCelcius -> ");
                 temperatureCelcius = Integer.parseInt(TECLADO.nextLine());
             } catch (Exception e) {
-                temperatureCelcius = 0;
+
+                double aux = 0;
+                try {
+                    aux = Double.parseDouble(TECLADO.nextLine());
+                } catch (Exception ex) {
+                    temperatureCelcius = 0;
+                }
+
+                temperatureCelcius = (int) aux;
             }
 
             int humidityPercent;
@@ -1024,10 +931,27 @@ public class Test {
             }
 
             System.out.print("weather_condition -> ");
-            String weather_condition = TECLADO.nextLine();
+            String weather_condition;
+
+            try {
+                weather_condition = TECLADO.nextLine();
+            } catch (Exception e) {
+
+                weather_condition = null;
+            }
 
             System.out.print("forecast -> ");
-            String forecast = TECLADO.nextLine();
+            String forecast;
+
+            try {
+
+                forecast = TECLADO.nextLine();
+
+            } catch (Exception e) {
+
+                forecast = null;
+
+            }
 
             Timestamp updatedTimeStamp = Timestamp.from(Instant.now());
 
@@ -1044,6 +968,8 @@ public class Test {
                 ConexionMongoDB.insertWeatherData(conn, city, country, latitude, longitude, dateTimeStamp, temperatureCelcius, humidityPercent, precipitation_mm, wind_speed_kmh, weather_condition, forecast, updatedTimeStamp);
 
             }
+
+            System.out.println("Element insertat amb exit");
 
         } while (!stop);
 
@@ -1084,17 +1010,17 @@ public class Test {
             case 1:
 
                 System.out.println("Dime la ciutat que vols solicitar: ");
-                
-                if (DBName.equalsIgnoreCase("MySQL")){
-                    
+
+                if (DBName.equalsIgnoreCase("MySQL")) {
+
                     WeatherDataDAO.showCities(conMySQL);
-                    
-                }else{
-                    
+
+                } else {
+
                     ConexionMongoDB.showCities(conMongo);
-                    
+
                 }
-                
+
                 String city = TECLADO.nextLine();
                 if (DBName.equalsIgnoreCase("MySQL")) {
                     System.out.println("Dades de MySQL");
@@ -1111,17 +1037,17 @@ public class Test {
             case 2:
 
                 System.out.println("Introduiex les ciutats separades per , :");
-                
-                if (DBName.equalsIgnoreCase("MySQL")){
-                    
+
+                if (DBName.equalsIgnoreCase("MySQL")) {
+
                     WeatherDataDAO.showCities(conMySQL);
-                    
-                }else{
-                    
+
+                } else {
+
                     ConexionMongoDB.showCities(conMongo);
-                    
+
                 }
-                
+
                 String ipt = TECLADO.nextLine();
 
                 String[] cities = ipt.split(",");
@@ -1180,7 +1106,6 @@ public class Test {
                 System.out.println("Dime la ciutat que vols eliminar: ");
                 String city = TECLADO.nextLine();
 
-                System.out.println("Ciutat que se van a eliminar de " + DBName);
                 if (DBName.equalsIgnoreCase("MySQL")) {
 
                     WeatherDataDAO.deleteElementByCity(conMySQL, city);
